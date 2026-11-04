@@ -13,7 +13,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("configs/weights.json"))
     parser.add_argument("--output", type=Path, default=Path("weights/esm3"))
-    parser.add_argument("--dry-run", action="store_true", help="List sizes without downloading weights")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="List sizes without downloading weights"
+    )
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
     info = HfApi().model_info(config["repo_id"], revision=config["revision"], files_metadata=True)
@@ -28,8 +30,10 @@ def main():
         return
     args.output.mkdir(parents=True, exist_ok=True)
     snapshot_download(
-        repo_id=config["repo_id"], revision=info.sha,
-        allow_patterns=config["allow_patterns"], local_dir=args.output,
+        repo_id=config["repo_id"],
+        revision=info.sha,
+        allow_patterns=config["allow_patterns"],
+        local_dir=args.output,
         max_workers=2,
     )
     manifest = {"repo_id": info.id, "revision": info.sha, "files": []}

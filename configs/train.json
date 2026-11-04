@@ -1,0 +1,21 @@
+{
+  "weights": "weights/esm3",
+  "manifest": "data/processed/splits.jsonl",
+  "output": "outputs/geometry_lora",
+  "device": "cuda",
+  "seed": 42,
+  "steps": 1000,
+  "accumulation_steps": 4,
+  "eval_every": 100,
+  "learning_rate": 0.0001,
+  "warmup_steps": 50,
+  "mask_probability": 0.5,
+  "objective": "masked",
+  "use_lora": true,
+  "use_geometry": true,
+  "rank": 8,
+  "alpha": 16,
+  "dropout": 0.05,
+  "hidden": 128,
+  "gradient_checkpointing": true
+}

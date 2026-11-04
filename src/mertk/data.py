@@ -151,7 +151,7 @@ def build_dataset(raw_manifest, output, max_length=512, min_interface=5, k=32, r
             records.append(
                 {
                     "id": identifier,
-                    "path": str(path.resolve()),
+                    "path": path.name,
                     "assembly": item["assembly"],
                     "pdb_id": item["assembly"].split("-")[0],
                     "binder_chain": binder.name,

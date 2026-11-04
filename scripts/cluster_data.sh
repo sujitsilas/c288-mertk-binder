@@ -12,6 +12,7 @@ mkdir -p "$data_dir/clustering"
 mmseqs version > "$data_dir/clustering/version.txt"
 mmseqs easy-cluster "$data_dir/chains.fasta" "$data_dir/clustering/families" \
     "$data_dir/clustering/tmp" --min-seq-id 0.3 -c 0.8 --cov-mode 0 \
-    --cluster-mode 1 -s 7.5
+    --cluster-mode 1 --single-step-clustering 1 -s 7.5 --max-seqs 10000 \
+    --threads "${MMSEQS_THREADS:-4}" -v 1
 python scripts/split_data.py --examples "$data_dir/examples.jsonl" \
     --clusters "$data_dir/clustering/families_cluster.tsv" --output "$data_dir/splits.jsonl"
