@@ -1,0 +1,13 @@
+For your final project, you will propose a protein-engineering strategy to address an unmet problem in immunoengineering or cellular control. This initial statement should introduce your idea and provide a starting point for feedback.
+
+Briefly address in one page, 1 inch margin:
+
+The problem. What immune or cellular function do you want to control? Why is this important, and what limitation of current approaches would you address?
+
+Your protein concept. What would your protein do, and how would it produce the desired biological effect? Identify the relevant molecular targets and describe what success would look like.
+
+Your proposed approach. How would you design or engineer the protein? Outline the main computational and/or experimental steps you envision.
+
+Testing and challenges. What key experiment and controls would show whether your idea works? Identify one major challenge or uncertainty.
+
+Choose a focused idea that you can develop throughout the course. It is fine if some details are still uncertain as you will identify what you need to learn or resolve as we go through the course. Please include, a simple schematic and cite relevant references to support your proposal (references can be on another page).
