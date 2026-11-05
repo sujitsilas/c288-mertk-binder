@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-train = ["esm==3.4.2", "torch>=2.11,<2.12"]
+train = ["esm==3.4.2", "torch>=2.11,<2.12", "psutil>=7,<8"]
 dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
 
 [tool.setuptools.packages.find]

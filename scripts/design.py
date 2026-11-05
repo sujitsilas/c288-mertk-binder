@@ -11,7 +11,8 @@ import torch
 from mertk.dataset import load_batch
 from mertk.model import weight_identity
 from mertk.objectives import sample_sequence
-from mertk.training import autocast, build_model
+from mertk.runtime import autocast, resolve_device
+from mertk.training import build_model
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
@@ -20,6 +21,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--weights", default="weights/esm3")
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--precision", choices=["auto", "fp32", "bf16"], default="auto")
     parser.add_argument("--samples", type=int, default=8)
     parser.add_argument("--steps", type=int, default=16)
     parser.add_argument("--temperature", type=float, default=1.0)
@@ -33,7 +35,7 @@ if __name__ == "__main__":
     config = dict(saved["metadata"]["config"], weights=args.weights)
     if saved["metadata"]["weights"] != weight_identity(args.weights):
         raise ValueError("Base weights differ from training weights")
-    device = torch.device(args.device)
+    device = resolve_device(args.device)
     model = build_model(config, device)
     model.load_adapter_state_dict(saved["adapter"])
     tokenizer = model.backbone.tokenizers.sequence
@@ -42,7 +44,7 @@ if __name__ == "__main__":
         binder_length = len(str(example["binder_sequence"]))
     sequences = []
     for index in range(args.samples):
-        with autocast(device):
+        with autocast(device, args.precision):
             tokens = sample_sequence(
                 model, batch, tokenizer, args.steps, args.temperature, args.seed + index
             )

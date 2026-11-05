@@ -10,14 +10,34 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=Path, default=Path("configs/train.json"))
     parser.add_argument("--output")
     parser.add_argument("--steps", type=int)
+    parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"])
+    parser.add_argument("--precision", choices=["auto", "fp32", "bf16"])
+    parser.add_argument("--accumulation-steps", type=int)
+    parser.add_argument("--cpu-threads", type=int)
+    parser.add_argument(
+        "--gradient-checkpointing", action=argparse.BooleanOptionalAction, default=None
+    )
     parser.add_argument("--objective", choices=["masked", "denoise"])
     parser.add_argument("--ablation", choices=["combined", "lora", "geometry"], default="combined")
     parser.add_argument(
-        "--smoke-test", action="store_true", help="Tiny random ESM3 and synthetic data, CPU only"
+        "--smoke-test",
+        action="store_true",
+        help="Tiny random ESM3 and synthetic data (CPU unless --device is given)",
     )
     parser.add_argument("--resume", type=Path)
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
+    for key in (
+        "device",
+        "precision",
+        "accumulation_steps",
+        "cpu_threads",
+        "gradient_checkpointing",
+    ):
+        if getattr(args, key) is not None:
+            config[key] = getattr(args, key)
+    if args.smoke_test and args.device is not None:
+        config["smoke_device"] = True
     if args.output:
         config["output"] = args.output
     if args.steps is not None:

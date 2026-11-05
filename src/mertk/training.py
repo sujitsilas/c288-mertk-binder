@@ -4,7 +4,7 @@ import hashlib
 import json
 import random
 import subprocess
-from contextlib import nullcontext
+import time
 from pathlib import Path
 
 import torch
@@ -12,10 +12,14 @@ import torch
 from mertk.dataset import load_batch, make_batch, read_records, synthetic_example
 from mertk.model import InterfaceModel, load_backbone, weight_identity
 from mertk.objectives import corrupt, reconstruction_loss
-
-
-def autocast(device):
-    return torch.autocast("cuda", dtype=torch.bfloat16) if device.type == "cuda" else nullcontext()
+from mertk.runtime import (
+    accelerator_rng_state,
+    autocast,
+    resolve_device,
+    resolve_precision,
+    restore_accelerator_rng,
+    synchronize,
+)
 
 
 def build_model(config, device, tiny=False):
@@ -60,8 +64,29 @@ def audit_splits(rows):
             ownership[key] = split
 
 
+def backward_microbatch(
+    model, batch, device, probability, mask_rng, accumulation_steps=1, precision="auto"
+):
+    tokens, selected = corrupt(
+        batch["sequence_tokens"],
+        batch["design_mask"],
+        model.backbone.tokenizers.sequence.mask_token_id,
+        probability,
+        mask_rng,
+    )
+    with autocast(device, precision):
+        logits = model(
+            batch, sequence_tokens=tokens, time=torch.tensor([probability], device=device)
+        )
+        loss = reconstruction_loss(logits, batch["sequence_tokens"], selected)
+    if not torch.isfinite(loss):
+        raise FloatingPointError("Non-finite training loss")
+    (loss / accumulation_steps).backward()
+    return loss.item()
+
+
 @torch.no_grad()
-def evaluate(model, rows, device, tiny=False, seed=2026):
+def evaluate(model, rows, device, tiny=False, seed=2026, precision="auto"):
     model.eval()
     total_loss, correct, total = 0.0, 0, 0
     tokenizer = model.backbone.tokenizers.sequence
@@ -78,12 +103,18 @@ def evaluate(model, rows, device, tiny=False, seed=2026):
             probability=1.0,
             generator=torch.Generator().manual_seed(seed),
         )
-        with autocast(device):
+        with autocast(device, precision):
             logits = model(batch, sequence_tokens=tokens, time=torch.ones(1, device=device))
         count = int(selected.sum())
-        total_loss += reconstruction_loss(logits, batch["sequence_tokens"], selected).item() * count
+        loss = reconstruction_loss(logits, batch["sequence_tokens"], selected)
+        if not 0 < count <= selected.numel() or not torch.isfinite(loss):
+            raise FloatingPointError("Invalid validation mask or non-finite validation loss")
+        total_loss += loss.item() * count
         predictions = aa_ids[logits[selected][:, aa_ids].argmax(-1)]
-        correct += int((predictions == batch["sequence_tokens"][selected]).sum())
+        matches = int((predictions == batch["sequence_tokens"][selected]).sum())
+        if not 0 <= matches <= count:
+            raise FloatingPointError("Invalid validation recovery count")
+        correct += matches
         total += count
     if not total:
         raise ValueError("Evaluation has no masked residues")
@@ -105,13 +136,14 @@ def train(config, smoke=False, resume=None):
         raise ValueError("objective must be masked or denoise")
     if config["steps"] < 1 or config["accumulation_steps"] < 1 or config["eval_every"] < 1:
         raise ValueError("steps, accumulation_steps, and eval_every must be positive")
-    device = torch.device("cpu" if smoke else config["device"])
-    if device.type == "cuda" and (
-        not torch.cuda.is_available() or not torch.cuda.is_bf16_supported()
-    ):
-        raise RuntimeError(
-            "CUDA bf16 is required by this config; use --smoke-test for CPU validation"
-        )
+    device = resolve_device(
+        config.get("device", "cpu") if not smoke or config.get("smoke_device") else "cpu"
+    )
+    precision = resolve_precision(device, config.get("precision", "auto"))
+    if config.get("cpu_threads") is not None:
+        if config["cpu_threads"] < 1:
+            raise ValueError("cpu_threads must be positive")
+        torch.set_num_threads(config["cpu_threads"])
     torch.manual_seed(config["seed"])
     rng = random.Random(config["seed"])
     mask_rng = torch.Generator().manual_seed(config["seed"])
@@ -141,6 +173,7 @@ def train(config, smoke=False, resume=None):
         "manifest_sha256": None if smoke else file_hash(config["manifest"]),
         "trainable_parameters": sum(p.numel() for p in parameters),
         "total_parameters": sum(p.numel() for p in model.parameters()),
+        "runtime": {"device": str(device), "precision": precision, "torch": str(torch.__version__)},
     }
     revision = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
     metadata["git_revision"] = revision.stdout.strip() if revision.returncode == 0 else None
@@ -150,13 +183,14 @@ def train(config, smoke=False, resume=None):
         for key in ("config", "smoke_test", "weights", "manifest_sha256"):
             if saved["metadata"][key] != metadata[key]:
                 raise ValueError(f"Resume metadata mismatch: {key}")
+        if saved["metadata"].get("runtime", metadata["runtime"]) != metadata["runtime"]:
+            raise ValueError("Resume runtime differs from the saved device/precision")
         model.load_adapter_state_dict(saved["adapter"])
         optimizer.load_state_dict(saved["optimizer"])
         rng.setstate(saved["python_rng"])
         mask_rng.set_state(saved["mask_rng"])
         torch.set_rng_state(saved["torch_rng"])
-        if device.type == "cuda":
-            torch.cuda.set_rng_state_all(saved["cuda_rng"])
+        restore_accelerator_rng(device, saved.get("accelerator_rng", saved.get("cuda_rng")))
         start = saved["step"]
         # Rolling back to an older saved step must not leave duplicate/future metrics.
         metrics_path = output / "metrics.jsonl"
@@ -179,8 +213,9 @@ def train(config, smoke=False, resume=None):
         ),
         flush=True,
     )
-    tokenizer = model.backbone.tokenizers.sequence
     for step in range(start, config["steps"]):
+        synchronize(device)
+        step_started = time.perf_counter()
         model.train()
         optimizer.zero_grad(set_to_none=True)
         train_loss = 0.0
@@ -195,27 +230,21 @@ def train(config, smoke=False, resume=None):
                 if config["objective"] == "denoise"
                 else config["mask_probability"]
             )
-            tokens, selected = corrupt(
-                batch["sequence_tokens"],
-                batch["design_mask"],
-                tokenizer.mask_token_id,
-                probability,
-                mask_rng,
+            loss = backward_microbatch(
+                model, batch, device, probability, mask_rng, config["accumulation_steps"], precision
             )
-            with autocast(device):
-                logits = model(
-                    batch, sequence_tokens=tokens, time=torch.tensor([probability], device=device)
-                )
-                loss = reconstruction_loss(logits, batch["sequence_tokens"], selected)
-            if not torch.isfinite(loss):
-                raise FloatingPointError(f"Non-finite loss at step {step + 1}")
-            (loss / config["accumulation_steps"]).backward()
-            train_loss += loss.item() / config["accumulation_steps"]
+            train_loss += loss / config["accumulation_steps"]
         torch.nn.utils.clip_grad_norm_(parameters, 1.0, error_if_nonfinite=True)
         optimizer.step()
-        metrics = {"step": step + 1, "train_loss": train_loss, "learning_rate": lr}
+        synchronize(device)
+        metrics = {
+            "step": step + 1,
+            "train_loss": train_loss,
+            "learning_rate": lr,
+            "step_seconds": time.perf_counter() - step_started,
+        }
         if (step + 1) % config["eval_every"] == 0 or step + 1 == config["steps"]:
-            metrics["validation"] = evaluate(model, val_rows, device, smoke)
+            metrics["validation"] = evaluate(model, val_rows, device, smoke, precision=precision)
             saved = {
                 "step": step + 1,
                 "adapter": model.adapter_state_dict(),
@@ -225,6 +254,7 @@ def train(config, smoke=False, resume=None):
                 "mask_rng": mask_rng.get_state(),
                 "torch_rng": torch.get_rng_state(),
                 "cuda_rng": torch.cuda.get_rng_state_all() if device.type == "cuda" else [],
+                "accelerator_rng": accelerator_rng_state(device),
             }
             torch.save(saved, output / "last.tmp.pt")
             (output / "last.tmp.pt").replace(output / "last.pt")

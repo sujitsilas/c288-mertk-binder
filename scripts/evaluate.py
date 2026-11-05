@@ -7,6 +7,7 @@ import torch
 
 from mertk.dataset import read_records
 from mertk.model import weight_identity
+from mertk.runtime import resolve_device
 from mertk.training import audit_splits, build_model, evaluate, file_hash
 
 if __name__ == "__main__":
@@ -15,8 +16,13 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=Path, help="Omit for frozen ESM3 baseline")
     parser.add_argument("--split", choices=["val", "test", "application_holdout"], default="test")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"])
+    parser.add_argument("--precision", choices=["auto", "fp32", "bf16"])
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
+    for key in ("device", "precision"):
+        if getattr(args, key) is not None:
+            config[key] = getattr(args, key)
     saved = None
     if args.checkpoint:
         saved = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
@@ -35,11 +41,11 @@ if __name__ == "__main__":
     rows = read_records(config["manifest"])
     audit_splits(rows)
     selected = [row for row in rows if row["split"] == args.split]
-    device = torch.device(config["device"])
+    device = resolve_device(config["device"])
     model = build_model(config, device)
     if saved:
         model.load_adapter_state_dict(saved["adapter"])
-    metrics = evaluate(model, selected, device)
+    metrics = evaluate(model, selected, device, precision=config.get("precision", "auto"))
     result = {
         "split": args.split,
         "checkpoint": str(args.checkpoint) if saved else "frozen_esm3",
