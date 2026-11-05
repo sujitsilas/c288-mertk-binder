@@ -1,0 +1,17 @@
+{
+  "seeds": [42, 43, 44],
+  "samples": 8,
+  "sampling_steps": 16,
+  "temperature": 1.0,
+  "split": "test",
+  "arms": {
+    "frozen_esm3": {"model_type": "esm3", "use_lora": false, "use_geometry": false, "objective": "masked", "atom_context": "all"},
+    "lora": {"model_type": "esm3", "use_lora": true, "use_geometry": false, "objective": "masked", "atom_context": "all"},
+    "geometry": {"model_type": "esm3", "use_lora": false, "use_geometry": true, "objective": "masked", "atom_context": "all"},
+    "combined": {"model_type": "esm3", "use_lora": true, "use_geometry": true, "objective": "masked", "atom_context": "all"},
+    "combined_backbone_atoms": {"model_type": "esm3", "use_lora": true, "use_geometry": true, "objective": "masked", "atom_context": "backbone"},
+    "denoise": {"model_type": "esm3", "use_lora": true, "use_geometry": true, "objective": "denoise", "atom_context": "all"},
+    "atom_decoder": {"model_type": "atom_decoder", "use_lora": false, "use_geometry": true, "objective": "masked", "atom_context": "all"},
+    "proteinmpnn": {"model_type": "proteinmpnn", "use_lora": false, "use_geometry": false, "objective": "masked", "atom_context": "all"}
+  }
+}

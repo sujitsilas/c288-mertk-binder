@@ -123,7 +123,7 @@ def main():
     parameters = [p for p in model.parameters() if p.requires_grad]
     model.train()
     for path in paths:
-        batch = load_batch(path, model.backbone.tokenizers.sequence, device, require_structure=True)
+        batch = load_batch(path, model.tokenizer, device, require_structure=True)
         optimizer = torch.optim.AdamW(parameters, lr=config["learning_rate"], weight_decay=0.01)
         timings, losses, memory = [], [], []
         if device.type == "cuda":

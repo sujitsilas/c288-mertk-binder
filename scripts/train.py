@@ -18,7 +18,10 @@ if __name__ == "__main__":
         "--gradient-checkpointing", action=argparse.BooleanOptionalAction, default=None
     )
     parser.add_argument("--objective", choices=["masked", "denoise"])
-    parser.add_argument("--ablation", choices=["combined", "lora", "geometry"], default="combined")
+    parser.add_argument("--ablation", choices=["combined", "lora", "geometry"])
+    parser.add_argument("--model-type", choices=["esm3", "atom_decoder"])
+    parser.add_argument("--atom-context", choices=["all", "backbone"])
+    parser.add_argument("--seed", type=int)
     parser.add_argument(
         "--smoke-test",
         action="store_true",
@@ -33,6 +36,9 @@ if __name__ == "__main__":
         "accumulation_steps",
         "cpu_threads",
         "gradient_checkpointing",
+        "model_type",
+        "atom_context",
+        "seed",
     ):
         if getattr(args, key) is not None:
             config[key] = getattr(args, key)
@@ -44,8 +50,9 @@ if __name__ == "__main__":
         config["steps"] = args.steps
     if args.objective:
         config["objective"] = args.objective
-    config["use_lora"] = args.ablation in {"combined", "lora"}
-    config["use_geometry"] = args.ablation in {"combined", "geometry"}
+    if args.ablation:
+        config["use_lora"] = args.ablation in {"combined", "lora"}
+        config["use_geometry"] = args.ablation in {"combined", "geometry"}
     if args.smoke_test:
         config.update(
             steps=args.steps or 2,

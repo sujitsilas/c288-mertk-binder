@@ -30,14 +30,30 @@ if __name__ == "__main__":
             raise ValueError(
                 "A synthetic smoke checkpoint cannot be used for scientific evaluation"
             )
-        for key in ["use_lora", "use_geometry", "objective", "rank", "alpha", "dropout", "hidden"]:
-            config[key] = saved["metadata"]["config"][key]
-        if saved["metadata"]["weights"] != weight_identity(config["weights"]):
+        for key in [
+            "use_lora",
+            "use_geometry",
+            "objective",
+            "rank",
+            "alpha",
+            "dropout",
+            "hidden",
+            "model_type",
+            "atom_context",
+        ]:
+            if key in saved["metadata"]["config"]:
+                config[key] = saved["metadata"]["config"][key]
+        identity = (
+            {"kind": "atom_decoder"}
+            if config.get("model_type") == "atom_decoder"
+            else weight_identity(config["weights"])
+        )
+        if saved["metadata"]["weights"] != identity:
             raise ValueError("Checkpoint base weights differ from evaluation weights")
         if saved["metadata"]["manifest_sha256"] != file_hash(config["manifest"]):
             raise ValueError("Evaluation must use the same split manifest as training")
     else:
-        config.update(use_lora=False, use_geometry=False, objective="masked")
+        config.update(use_lora=False, use_geometry=False, objective="masked", model_type="esm3")
     rows = read_records(config["manifest"])
     audit_splits(rows)
     selected = [row for row in rows if row["split"] == args.split]

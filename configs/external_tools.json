@@ -1,0 +1,13 @@
+{
+  "proteinmpnn": {
+    "repository": "https://github.com/dauparas/ProteinMPNN.git",
+    "revision": "8907e6671bfbfc92303b5f79c4b5e6ce47cdef57",
+    "directory": "external/ProteinMPNN",
+    "checkpoint": "vanilla_model_weights/v_48_020.pt"
+  },
+  "bindcraft": {
+    "repository": "https://github.com/martinpacesa/BindCraft.git",
+    "revision": "7713aa0d0d351e4117a8befeb8541f3a8ebd3368",
+    "directory": "external/BindCraft"
+  }
+}

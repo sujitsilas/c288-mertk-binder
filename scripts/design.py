@@ -33,12 +33,17 @@ if __name__ == "__main__":
     if saved["metadata"]["smoke_test"]:
         raise ValueError("Use a trained real ESM3 checkpoint for design")
     config = dict(saved["metadata"]["config"], weights=args.weights)
-    if saved["metadata"]["weights"] != weight_identity(args.weights):
+    identity = (
+        {"kind": "atom_decoder"}
+        if config.get("model_type") == "atom_decoder"
+        else weight_identity(args.weights)
+    )
+    if saved["metadata"]["weights"] != identity:
         raise ValueError("Base weights differ from training weights")
     device = resolve_device(args.device)
     model = build_model(config, device)
     model.load_adapter_state_dict(saved["adapter"])
-    tokenizer = model.backbone.tokenizers.sequence
+    tokenizer = model.tokenizer
     batch = load_batch(args.example, tokenizer, device, require_structure=True)
     with np.load(args.example, allow_pickle=False) as example:
         binder_length = len(str(example["binder_sequence"]))

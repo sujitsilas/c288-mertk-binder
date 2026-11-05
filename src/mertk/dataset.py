@@ -77,4 +77,6 @@ def synthetic_example():
         "neighbor_features": np.zeros((n, k, 3), dtype=np.int64),
         "neighbor_mask": np.ones((n, k), dtype=bool),
         "design_mask": np.ones(n, dtype=bool),
+        "binder_oxygen": (backbone[:, 2] + [0.3, 1.0, 0]).astype(np.float32),
+        "target_oxygen": (backbone[:m, 2] + [0.3, 6.0, 0]).astype(np.float32),
     }

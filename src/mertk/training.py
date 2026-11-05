@@ -23,6 +23,12 @@ from mertk.runtime import (
 
 
 def build_model(config, device, tiny=False):
+    if config.get("model_type", "esm3") == "atom_decoder":
+        from mertk.atom_decoder import AtomDecoder
+
+        return AtomDecoder(config["hidden"]).to(device)
+    if config.get("model_type", "esm3") != "esm3":
+        raise ValueError("Unknown model_type")
     base = load_backbone(config["weights"], device, tiny=tiny)
     return InterfaceModel(
         base,
@@ -34,11 +40,12 @@ def build_model(config, device, tiny=False):
         dropout=config["dropout"],
         hidden=config["hidden"],
         gradient_checkpointing=config["gradient_checkpointing"],
+        atom_context=config.get("atom_context", "all"),
     ).to(device)
 
 
 def get_batch(row, model, device, tiny=False):
-    tokenizer = model.backbone.tokenizers.sequence
+    tokenizer = model.tokenizer
     if tiny:
         return make_batch(synthetic_example(), tokenizer, device)
     return load_batch(row["path"], tokenizer, device, require_structure=True)
@@ -70,7 +77,7 @@ def backward_microbatch(
     tokens, selected = corrupt(
         batch["sequence_tokens"],
         batch["design_mask"],
-        model.backbone.tokenizers.sequence.mask_token_id,
+        model.tokenizer.mask_token_id,
         probability,
         mask_rng,
     )
@@ -89,7 +96,7 @@ def backward_microbatch(
 def evaluate(model, rows, device, tiny=False, seed=2026, precision="auto"):
     model.eval()
     total_loss, correct, total = 0.0, 0, 0
-    tokenizer = model.backbone.tokenizers.sequence
+    tokenizer = model.tokenizer
     from mertk.data import AA
 
     aa_ids = torch.tensor([tokenizer.convert_tokens_to_ids(a) for a in AA], device=device)
@@ -165,7 +172,15 @@ def train(config, smoke=False, resume=None):
     optimizer = torch.optim.AdamW(parameters, lr=config["learning_rate"], weight_decay=0.01)
     output = Path(config["output"])
     output.mkdir(parents=True, exist_ok=True)
-    identity = {"kind": "random-tiny-smoke"} if smoke else weight_identity(config["weights"])
+    identity = (
+        {"kind": "random-tiny-smoke"}
+        if smoke
+        else (
+            {"kind": "atom_decoder"}
+            if config.get("model_type") == "atom_decoder"
+            else weight_identity(config["weights"])
+        )
+    )
     metadata = {
         "config": config,
         "smoke_test": smoke,

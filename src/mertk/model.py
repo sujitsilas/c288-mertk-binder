@@ -104,9 +104,13 @@ class InterfaceModel(nn.Module):
         dropout=0.05,
         hidden=128,
         gradient_checkpointing=True,
+        atom_context="all",
     ):
         super().__init__()
         self.backbone = backbone.requires_grad_(False)
+        if atom_context not in {"all", "backbone"}:
+            raise ValueError("atom_context must be all or backbone")
+        self.atom_context = atom_context
         d_model = backbone.encoder.sequence_embed.embedding_dim
         self.lora_targets = inject_lora(backbone, rank, alpha, dropout) if use_lora else []
         self.adapter = GeometricAdapter(d_model, hidden) if use_geometry else None
@@ -127,11 +131,14 @@ class InterfaceModel(nn.Module):
             (*tokens.shape, self.backbone.encoder.sequence_embed.embedding_dim)
         )
         if self.adapter is not None:
+            mask = batch["neighbor_mask"]
+            if self.atom_context == "backbone":
+                mask = mask & batch["neighbor_features"][..., 2].bool()
             condition = condition + self.adapter(
                 batch["backbone"],
                 batch["neighbor_xyz"],
                 batch["neighbor_features"],
-                batch["neighbor_mask"],
+                mask,
             )
         if self.time_embed is not None:
             if time is None:
@@ -170,6 +177,10 @@ class InterfaceModel(nn.Module):
         if set(state) != expected:
             raise ValueError("Checkpoint adapter keys do not match the configured model")
         self.load_state_dict(state, strict=False)
+
+    @property
+    def tokenizer(self):
+        return self.backbone.tokenizers.sequence
 
 
 def weight_identity(weights):

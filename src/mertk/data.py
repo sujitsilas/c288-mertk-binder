@@ -26,6 +26,7 @@ class Chain:
     backbone: np.ndarray
     atoms: np.ndarray
     atom_features: np.ndarray
+    oxygen: np.ndarray | None = None
 
 
 def read_chains(path):
@@ -52,6 +53,7 @@ def read_chains(path):
         sequence = re.sub(r"\([^)]*\)", "X", sequence)
         sequence = "".join(a if a in AA else "X" for a in sequence)
         coords = np.full((len(sequence), 3, 3), np.nan, dtype=np.float32)
+        oxygen = np.full((len(sequence), 3), np.nan, dtype=np.float32)
         atoms, features = [], []
         for residue in chain:
             index = residue.id[1] - 1  # label_seq_id indexes entity_poly sequence
@@ -60,6 +62,8 @@ def read_chains(path):
                 continue
             if all(name in residue for name in ["N", "CA", "C"]):
                 coords[index] = [residue[name].coord for name in ["N", "CA", "C"]]
+            if "O" in residue:
+                oxygen[index] = residue["O"].coord
             for atom in residue:
                 if atom.element in {"H", "D"} or (atom.occupancy or 0) <= 0:
                     continue
@@ -77,6 +81,7 @@ def read_chains(path):
                     coords,
                     np.array(atoms, dtype=np.float32),
                     np.array(features, dtype=np.int64),
+                    oxygen,
                 )
             )
     return chains
@@ -112,7 +117,7 @@ def prepare_pair(binder, target, k=32, radius=12.0, interface_cutoff=8.0):
     )
     # Interface membership uses binder backbone only, independent of its native residue identity.
     interface = (distance <= interface_cutoff) & np.array([a in AA for a in binder.sequence])
-    return {
+    example = {
         "binder_sequence": np.array(binder.sequence),
         "target_sequence": np.array(target.sequence),
         "binder_backbone": binder.backbone,
@@ -122,6 +127,12 @@ def prepare_pair(binder, target, k=32, radius=12.0, interface_cutoff=8.0):
         "neighbor_mask": neighbor_mask,
         "design_mask": interface,
     }
+    if binder.oxygen is not None and target.oxygen is not None:
+        example["binder_oxygen"] = binder.oxygen
+        example["target_oxygen"] = target.oxygen
+        # Standard ProteinMPNN needs O as well as N/CA/C; every arm uses this mask.
+        example["design_mask"] &= np.isfinite(binder.oxygen).all(axis=-1)
+    return example
 
 
 def build_dataset(raw_manifest, output, max_length=512, min_interface=5, k=32, radius=12.0):
