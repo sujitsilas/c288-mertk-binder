@@ -13,14 +13,25 @@ application. Keep these as separate claims in the report.
 | LoRA | yes | yes | no | no |
 | Geometry | yes | no | yes | no |
 | Combined | yes | yes | yes | no |
+| Combined, backbone-only target atoms | yes | yes | yes, restricted atoms | no |
 | Denoising extension | yes | yes | yes | yes |
+| Atom-only decoder | absent | no | yes + small decoder | no |
+| ProteinMPNN | absent | no | no; pretrained backbone model | no |
 
-All arms receive the same target sequence, binder/target backbone coordinates,
-backbone structure tokens, and design masks. The primary endpoint implemented
-here is recovery when all eligible binder interface residues are masked at once;
+All ESM3 arms receive the same target sequence, binder/target backbone coordinates,
+backbone structure tokens, and design masks. ProteinMPNN receives N/CA/C/O backbone
+coordinates and fixed-position sequences; the small decoder receives only the
+local target-atom adapter features. All arms use the same complexes and eligible
+design positions. See [the comparison guide](comparisons.md) for the full input
+table, three-seed runner, and separate BindCraft application comparison.
+
+Training-time validation measures single-pass full-interface recovery;
 cross-entropy uses the full ESM3 vocabulary, while recovery/generation are limited
 to the 20 standard amino acids. Training masks a subset of the interface, so
 reconstruction difficulty differs from the full-mask evaluation by design.
+The cross-model comparison samples from a fully masked interface and reports
+sample-averaged recovery and diversity. Its sampling protocol differs from
+single-pass validation and must be labeled separately in results.
 
 Run at least three seeds and compare matched family subsets for learning curves.
 Aggregate confidence intervals over independent family components, not individual
@@ -66,8 +77,9 @@ not establish physiological binding.
 
 The initial pipeline uses resolved standard protein heavy atoms, highest-selected
 alternate locations as handled by Bio.PDB, and full polymer sequences. It excludes
-non-protein context from the learning features and skips missing-backbone design
-positions. Resolution filtering applies to search results; explicit-ID downloads
+non-protein context from the learning features and skips design
+positions missing N/CA/C/O (O is required by standard ProteinMPNN).
+Resolution filtering applies to search results; explicit-ID downloads
 bypass it. Glycans, ligands, membrane context, covalent chemistry, protonation, and
 side-chain uncertainty are not modeled in this first implementation. Protein-only
 polymer filtering does not mean the original complex lacks glycans or small molecules.
@@ -93,13 +105,14 @@ fine-tuning split; report it as a limitation of the frozen model baseline.
 - Expand and curate the pilot dataset; ensure enough independent validation and
   test families. Audit assemblies, missing residues, duplicate interfaces, sequence
   similarity, and domain-level leakage.
-- Add the proposal's ProteinMPNN and matched atom-input small-decoder benchmarks,
-  explicit backbone-only target-atom ablations, learning curves, diversity metrics,
-  and independent complex structure validation. These are not implemented yet.
+- Run the implemented ProteinMPNN, atom-input small-decoder, backbone-only
+  target-atom, and ESM3 ablation suite on the expanded dataset. Plot learning curves
+  from each run's metrics and add independent complex structure validation.
 - Measure speed, peak CUDA memory, and numerical behavior on the lab GPUs before
   long runs. The CUDA/bf16 code path has not been tested on this laptop.
-- Prepare MerTK extracellular-region binder complexes from BindCraft or another
-  backbone generator. A full receptor sequence may exceed this pipeline's 512-token
+- Use the BindCraft setup/import/application runner with a selected MerTK
+  extracellular construct and patch. Its source and launcher are prepared;
+  generation has not been run. A full receptor sequence may exceed this pipeline's 512-token
   budget; choose and document an extracellular domain construct rather than silently
   cropping the interface. Native PDB proteins are reconstruction data, not a supply
   of de novo MerTK minibinder candidates.

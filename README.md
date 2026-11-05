@@ -75,7 +75,8 @@ Preprocessing writes full polymer sequences (including missing-coordinate
 positions), backbone coordinates, target-only atom neighborhoods, fixed design
 masks, and provenance. Chains longer than the joint 512-token budget are skipped;
 there is no silent sequence truncation. The default contact rule is binder CA to
-target heavy atom ≤8 Å, with at least five interface residues. This coarse rule
+target heavy atom ≤8 Å, with at least five interface residues and complete
+N/CA/C/O coordinates at designed positions. This coarse rule
 avoids defining masks from the native binder side chains. Neighborhoods contain
 up to 32 target atoms within 12 Å. Only N/CA/C enter the frozen structure tokenizer.
 
@@ -94,6 +95,26 @@ Expand the data; do not move related chains between folds to fill a missing spli
 The data and processed features are local and ignored by git.
 
 ## Train and compare
+
+The [comparison guide](docs/comparisons.md) sets up eight matched arms:
+frozen ESM3, ProteinMPNN, an atom-only decoder, LoRA, geometry, combined,
+combined with backbone-only target atoms, and combined with sequence denoising.
+The suite uses three seeds, common design masks, sampled recovery/diversity,
+and paired family-level confidence intervals.
+
+```bash
+python scripts/setup_external.py  # Pinned ProteinMPNN weights and BindCraft source
+python scripts/run_comparisons.py  # Write the 24-job plan without starting training
+python scripts/run_comparisons.py --execute
+# Complete implementation check with tiny ESM3 modules and actual ProteinMPNN:
+python scripts/run_comparisons.py --smoke-test --execute --output outputs/comparison_smoke
+```
+
+BindCraft has a separate CUDA environment installer, job preparer, accepted-complex
+importer, and application comparison runner. Original BindCraft sequences are
+retained as controls alongside redesigns; see the guide for commands. Complex
+structure evaluation remains a separate step, and application seed retention
+is not treated as native recovery or improved binding.
 
 Run in an allocated CUDA GPU session on Hoffman2 or a lab workstation. The current
 trainer uses one GPU, bf16 autocast, fp32 parameters, gradient checkpointing,
@@ -128,7 +149,7 @@ masked-token loss and 20-amino-acid interface recovery.
 The geometric adapter expresses target atoms in each binder residue's N/CA/C
 frame, embeds element/residue/backbone features and radial distances, pools them
 with learned attention, and adds a zero-initialized projection before the ESM3
-transformer. Both target sequence and backbone remain visible in **all** ablations.
+transformer. Both target sequence and backbone remain visible in **all ESM3** ablations.
 Frozen structure tokens are cached separately for each chain.
 
 `--objective denoise` adds a noise-level embedding and trains reconstruction under
