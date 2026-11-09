@@ -50,3 +50,21 @@ component mode with the current default linclust implementation. Its version was
 `2a3dafc46f9a1bc79af96b4c11a24d63a7b0b4d4`; the pipeline records the installed
 version for each future run. MMseqs2 was run from a temporary portable installation;
 install it on the training machine using the README instructions.
+
+## Reoriented comparison checks — 2026-11-09
+
+- Added the four-arm core configuration: frozen ESM3, LoRA, combined, and
+  ProteinMPNN. Planning produced 12 arm/seed jobs, including six training runs.
+- Completed the four-arm synthetic smoke suite with tiny ESM3 modules and the
+  actual downloaded ProteinMPNN weights. Its report is local at
+  `outputs/comparison_core_smoke_20261109/summary.json`.
+- Sequence summaries now include paired family-level differences versus
+  ProteinMPNN as well as frozen ESM3. Tests cover both native recovery and
+  application seed-retention labels, including mismatched-cohort rejection.
+- `pytest -q`: 36 passed, 1 skipped. Ruff checks and formatting checks passed.
+
+The revised structural pass-rate endpoint in the experiment plan is a proposed
+protocol. AF3 job execution, structural scoring, noninferiority assessment,
+biological compatibility screening, and cellular testing have not run. The current
+pilot still lacks independent validation families. No scientific performance
+comparison or new binder-function result follows from these implementation checks.

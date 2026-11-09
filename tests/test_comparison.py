@@ -56,6 +56,32 @@ def test_summary_uses_families_and_paired_differences():
     assert summary["arms"]["combined"]["mean_recovery"]["families"] == 2
 
 
+@pytest.mark.parametrize("application", [False, True])
+def test_summary_reports_matched_proteinmpnn_contrast(application):
+    data = results()
+    mpnn = copy.deepcopy(data[0])
+    mpnn["arm"] = "proteinmpnn"
+    for case in mpnn["cases"]:
+        case["mean_recovery"] = 0.25
+    data.append(mpnn)
+    metric = "recovery"
+    if application:
+        metric = "seed_retention"
+        for result in data:
+            result["reference_kind"] = "bindcraft_seed"
+            for case in result["cases"]:
+                case["mean_seed_retention"] = case.pop("mean_recovery")
+    summary = summarize(data)["arms"]
+    key = f"paired_{metric}_delta_vs_proteinmpnn"
+    assert summary["combined"][key]["mean"] == 0.75
+    assert summary["frozen_esm3"][key]["mean"] == 0.25
+    assert summary["proteinmpnn"][key]["mean"] == 0
+    assert summary["combined"][key]["families"] == 2
+    data[-1]["cases"].pop()
+    with pytest.raises(ValueError, match="Missing matched"):
+        summarize(data)
+
+
 @pytest.mark.parametrize("mismatch", ["mask_sha256", "source_sha256", "component"])
 def test_summary_rejects_unmatched_comparisons(mismatch):
     data = results()

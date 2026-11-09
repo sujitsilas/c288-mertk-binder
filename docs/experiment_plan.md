@@ -1,44 +1,167 @@
-# Proposal review and implementation decisions
+# Design brief and comparison protocol
 
-The proposal's strongest first result is a controlled benchmark of target
-side-chain conditioning for interface reconstruction. It separates a measurable
-computational question from the more uncertain MerTK agonism/efferocytosis
-application. Keep these as separate claims in the report.
+Reoriented on 2026-11-09 after Professor Abedi's feedback. The
+[revised proposal draft](../Report/revised_project_direction.md) states the protein
+concept and motivation. The working computational comparison is **ESM3+adapter
+versus ProteinMPNN, with AF3 assessing both**. AF3 inference and structural scoring
+are planned work; the present runnable summaries measure sequence statistics.
 
-## First experiment
+## Protein design comes first
 
-| Arm | Frozen ESM3 | Train LoRA | Train target-atom adapter | Time-conditioned masking |
-| --- | --- | --- | --- | --- |
-| ESM3 baseline | yes | no | no | no |
-| LoRA | yes | yes | no | no |
-| Geometry | yes | no | yes | no |
-| Combined | yes | yes | yes | no |
-| Combined, backbone-only target atoms | yes | yes | yes, restricted atoms | no |
-| Denoising extension | yes | yes | yes | yes |
-| Atom-only decoder | absent | no | yes + small decoder | no |
-| ProteinMPNN | absent | no | no; pretrained backbone model | no |
+The intended building block is a small MerTK-selective extracellular binder that
+preserves natural-ligand access. A bivalent format is a subsequent hypothesis about
+receptor engagement, not an automatic consequence of obtaining a binder. The
+longer-term functional objective is greater apoptotic-cell internalization while
+preserving ligand-supported efferocytosis. The course deliverable is a defensible
+computational design and testing strategy; cellular activity requires experiments.
 
-All ESM3 arms receive the same target sequence, binder/target backbone coordinates,
-backbone structure tokens, and design masks. ProteinMPNN receives N/CA/C/O backbone
-coordinates and fixed-position sequences; the small decoder receives only the
-local target-atom adapter features. All arms use the same complexes and eligible
-design positions. See [the comparison guide](comparisons.md) for the full input
-table, three-seed runner, and separate BindCraft application comparison.
+| Requirement | Why it matters | Computational evidence to collect | Decisive experimental evidence |
+| --- | --- | --- | --- |
+| Folded, tractable binder | A designed sequence must form a usable protein | Fold consistency, exposed hydrophobicity and aggregation flags | Expression, monodispersity and folding/stability measurements |
+| MerTK binding at the selected epitope | The chosen surface must be reachable on the receptor | Intended pose and contact retention; full-ectodomain, glycan and membrane placement | Direct binding and epitope/competition measurements; cell-surface binding |
+| Selectivity over AXL/TYRO3 | Family-related binding would obscure receptor-specific function | Matched off-target predictions and surface comparisons as screening evidence | Matched binding assays against all three receptors |
+| Natural-ligand compatibility | A binder should not defeat the clearance mechanism it is intended to support | Overlay ligand-bound structural evidence; flag uncertain or conflicting geometries | GAS6/PROS1 competition and ligand-supported function with versus without binder |
+| Productive format and valency | Strong binding and receptor activation need not improve clearance | Attachment-point, linker and ectodomain geometry assessment | Monovalent versus bivalent constructs at comparable binding-site exposure |
+| MerTK-dependent efferocytosis | This is the proposed cellular benefit | No current computational metric establishes it | Apoptotic-cell internalization, distinguished from surface attachment, in control and MerTK-deficient macrophages |
 
-Training-time validation measures single-pass full-interface recovery;
-cross-entropy uses the full ESM3 vocabulary, while recovery/generation are limited
-to the 20 standard amino acids. Training masks a subset of the interface, so
-reconstruction difficulty differs from the full-mask evaluation by design.
-The cross-model comparison samples from a fully masked interface and reports
-sample-averaged recovery and diversity. Its sampling protocol differs from
-single-pass validation and must be labeled separately in results.
+Choose and document the exact construct, patch, residue numbering, structural
+confidence, glycosylation assumptions, and ligand-access rationale **before**
+backbone generation. The 512-token sequence-design crop is not the receptor's
+physical environment: restore the candidate to a full ectodomain/membrane context
+for biological screening. No patch has been selected yet. If its accessibility or
+ligand compatibility cannot be justified, revisit the patch or protein concept.
 
-Run at least three seeds and compare matched family subsets for learning curves.
-Aggregate confidence intervals over independent family components, not individual
-residues or duplicated assembly copies. The current trainer samples examples
-uniformly, so repeated crystal copies can overweight an entry; deduplicate or
-add component-balanced sampling before scaling the benchmark. Never tune on the
-test or TAM application splits.
+The functional comparison should include ligand alone, binder alone, ligand plus
+binder, a nonbinding control, and monovalent/bivalent versions. Test whether the
+binder adds benefit to ligand-supported clearance, not only whether it differs
+from untreated cells. Receptor phosphorylation supports the mechanism but is not
+the primary functional readout. The original proposal's warning is substantive:
+[Waterborg et al.](https://doi.org/10.3389/fimmu.2018.00742) observed interference
+with efferocytosis from an agonistic MerTK antibody in arthritis models.
+
+## Core computational experiment
+
+Hold the target construct, backbone pool, interface mask, fixed residues, and
+candidate budget constant. Only the sequence-design method changes. Use the same
+AF3 version, weights, input preparation, seeds, number of samples, and ranking rule
+for every arm. The intended comparison is conditional on a fixed backbone pool;
+it is not a comparison of unrestricted end-to-end binder generators.
+
+| Arm | Question answered | Priority |
+| --- | --- | --- |
+| ProteinMPNN → AF3 | How well does the established sequence-design method perform? | Core comparator |
+| Frozen ESM3 → AF3 | What does the pretrained model provide without adaptation? | Core control |
+| ESM3+LoRA → AF3 | Does task adaptation help without the atom adapter? | Core control |
+| ESM3+LoRA+atom adapter → AF3 | Does target atomic context help and approach ProteinMPNN? | Core hypothesis |
+| Original BindCraft sequence → AF3 | Does redesign help or harm the generator's starting design? | Application control |
+| Adapter-only, backbone-only atoms, atom-only decoder | Is a gain attributable to LoRA, side chains, or the pretrained model? | Follow-up ablations |
+| Time-conditioned masking / diffusion extensions | Does a different objective add value after the core result? | Deferred |
+
+`configs/comparison_core.json` runs the four core sequence-design arms across three
+seeds: 12 evaluation jobs and six training runs. The original eight-arm suite stays
+available. See [commands and model inputs](comparisons.md). These runners do not
+invoke AF3 yet. They train on reconstruction and export sampled sequences.
+
+ESM3 already receives backbone geometry; the adapter adds local target heavy-atom
+context, not the model's first structural information. ProteinMPNN is a backbone
+baseline, so a gain over it alone does not isolate an ESM-specific advantage.
+[Fixed-side-chain conditioning in LigandMPNN](https://github.com/dauparas/LigandMPNN#22---ligand_mpnn_use_side_chain_context)
+should be an additional comparison before claiming an advantage over atomic-context
+inverse folding. It is not integrated in this repository yet.
+
+The primary causal contrast is combined versus LoRA on matched training data and
+sampling budgets. Combined versus ProteinMPNN assesses practical competitiveness.
+If combined only matches ProteinMPNN while requiring more resources, report
+feasibility rather than a computational advantage. If it fails to improve on LoRA,
+there is no evidence to retain this adapter. A negative result still answers the
+methods question, and ProteinMPNN remains usable for the protein-design goal.
+
+## Define "close" before inspecting test results
+
+Let q be the fraction of generated candidates meeting the same predefined
+structural pass criteria, averaged within targets/families and then across
+independent families. The proposed comparison is:
+
+`delta = q(ESM3 + LoRA + adapter) - q(ProteinMPNN)`
+
+A **draft** practical margin is five absolute percentage points: declare
+noninferiority only if the lower bound of the paired 95% interval exceeds -0.05.
+This is a proposed engineering tolerance, not a literature-established biological
+threshold. Select and justify it before the test set is evaluated. A nonsignificant
+difference or overlapping error bars does not establish equivalence. A pilot with
+few independent families is exploratory and may be unable to resolve this margin.
+MerTK alone is an application case, not multiple independent targets just because
+many backbones or AF3 samples were generated for it.
+
+Starting structural gates for validation calibration, **not validated hit rules**:
+
+- Target–binder pair ipTM at least 0.8, using explicit chain identities.
+- Binder Cα RMSD at most 2 Å after fitting the binder to its designed backbone.
+- Binder Cα RMSD at most 3 Å after fitting the target domain to the reference target;
+  this tests the binder's pose, which a binder-only fit would hide.
+- No severe AF3 clash flag; inspect local interface clashes separately, since the
+  global flag is not a complete interface-quality check.
+
+Freeze atom/residue mappings, alignment domains, missing-residue handling and all
+cutoffs after validation calibration and before the final test. Preserve all raw
+confidence and geometry measurements. The interface epitope/contact retention,
+interchain PAE, binder confidence, diversity of passing sequences, and compute per
+passing candidate are secondary outcomes. These are measures of predicted
+structural consistency, not measured affinity or biological function.
+
+Select one AF3 prediction per sequence by the same predeclared AF3 ranking rule,
+with equal seeds/samples for each method. Never choose by closeness to the desired
+backbone after seeing outcomes. Report seed robustness separately. Count sequences
+that finish prediction but fail structural gates as failures; record infrastructure
+failures separately and rerun them under the same budget instead of silently
+removing difficult cases. Report valid-output rate as well as structural pass rate.
+AF3 describes these fields as [confidence and ranking measures](https://github.com/google-deepmind/alphafold3/blob/main/docs/output.md).
+
+## Evaluation stages and resource budget
+
+1. Expand and audit family-split PDB complexes. Masked native reconstruction trains
+   the model and checks learning; recovery and diversity are secondary diagnostics.
+   Split both partners' families, reserve TAMs, and tune no hyperparameters on test.
+2. Run the four core arms. Tune each method's sampling temperature on validation
+   under the same search budget; the same numeric temperature need not give the
+   same diversity. Keep a common locked evaluation protocol for final reporting.
+3. Run a small predeclared AF3 integration pilot, then a family-held-out structural
+   benchmark. Cache the same target MSA for all candidates and use the same policy
+   for binder MSAs. Use template-free prediction for the primary comparison and
+   do not supply the designed complex as a template. Freeze software/database
+   versions and document pretraining-overlap limitations. AF3 supports
+   [explicit MSA and template settings](https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md).
+4. Apply the locked protocol to shared MerTK backbone candidates. Rescore the
+   original BindCraft sequence with AF3 alongside all redesigns; do not compare
+   BindCraft's internal AF2 scores directly with AF3 scores. Its accepted backbone
+   pool is already selected by BindCraft, so results are conditional on that pool.
+5. Assess the biological criteria in the table, then rank candidates for proposed
+   experimental tests. An AF3 pass never automatically satisfies those criteria.
+
+Choose the structural cohort before seeing test confidence scores. Use all planned
+candidates or a deterministic equal-sized sample per method/backbone; do not select
+each method's favorable cases after prediction. Keep the original controls.
+The AF3 budget is:
+
+`targets × backbones/target × arms × design seeds × sequences/seed × AF3 seeds × samples/AF3 seed`
+
+For example, a plumbing pilot of 3 targets × 2 backbones × 4 arms × 1 design seed
+× 4 sequences × 1 AF3 seed × 5 samples requires 480 predicted structures, plus
+original-sequence controls. These are not 480 independent observations. This is
+an illustrative budget, not a submitted job or a power calculation. Set a feasible
+budget before a full run. Measure sequence-generation and AF3 costs separately,
+and report total cost including training; LoRA reduces trainable parameters but
+does not remove ESM3 backbone inference cost.
+
+Before attributing gains to useful atomic information, assess sensitivity to
+plausible target-side-chain conformations: native bound side chains can provide
+more favorable context than an uncertain application target. The backbone-only
+control helps isolate information content but does not establish robustness.
+
+If sample efficiency is pursued, train LoRA and combined on the same nested
+family-level subsets at matched training budgets and compare both learning curves.
+That follow-up can justify adaptation with limited data; parity at one data size
+alone cannot establish it.
 
 ## Geometry and diffusion
 
@@ -105,9 +228,10 @@ fine-tuning split; report it as a limitation of the frozen model baseline.
 - Expand and curate the pilot dataset; ensure enough independent validation and
   test families. Audit assemblies, missing residues, duplicate interfaces, sequence
   similarity, and domain-level leakage.
-- Run the implemented ProteinMPNN, atom-input small-decoder, backbone-only
-  target-atom, and ESM3 ablation suite on the expanded dataset. Plot learning curves
-  from each run's metrics and add independent complex structure validation.
+- Run the four-arm core sequence comparison first. Implement AF3 job preparation,
+  output parsing, chain/residue mapping, geometry scoring and paired structural
+  reporting before claiming the revised endpoint has been measured. Follow up
+  with the broader ablations only as motivated by the core result.
 - Measure speed, peak CUDA memory, and numerical behavior on the lab GPUs before
   long runs. The CUDA/bf16 code path has not been tested on this laptop.
 - Use the BindCraft setup/import/application runner with a selected MerTK

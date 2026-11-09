@@ -1,7 +1,15 @@
 # Baselines, ablations, and BindCraft controls
 
+The [revised design brief](experiment_plan.md) prioritizes whether ESM3 plus its
+adapter approaches ProteinMPNN on the same backbone pool **under shared AF3
+assessment**, and whether the resulting candidates meet the MerTK protein-design
+criteria. AF3 execution and structural scoring remain unimplemented. Recovery and
+seed retention below are sequence diagnostics, not the final structural endpoint.
+
 Run commands from the repository root with the project environment active.
-`configs/comparison_suite.json` specifies seeds 42/43/44, eight samples per
+Start with `configs/comparison_core.json`: frozen ESM3, LoRA, combined, and
+ProteinMPNN. `configs/comparison_suite.json` retains all eight arms for follow-up
+ablations. Both specify seeds 42/43/44, eight samples per
 complex, temperature 1.0, and 16 reveal steps for the ESM3/atom-decoder sampler.
 ProteinMPNN uses its own autoregressive sampler at the same temperature; these
 are different generative models, not identical decoding algorithms.
@@ -32,16 +40,21 @@ python scripts/prepare_data.py
 bash scripts/cluster_data.sh
 python scripts/cache_structure_tokens.py --device cuda
 
-# Default is plan-only; inspect outputs/comparisons/plan.json and arm configs.
-python scripts/run_comparisons.py
-python scripts/run_comparisons.py --execute
-python scripts/run_comparisons.py --execute --resume
+# Plan the core comparison, then execute/resume once the dataset is ready.
+python scripts/run_comparisons.py --suite configs/comparison_core.json --output outputs/comparisons_core
+python scripts/run_comparisons.py --suite configs/comparison_core.json --output outputs/comparisons_core --execute
+python scripts/run_comparisons.py --suite configs/comparison_core.json --output outputs/comparisons_core --execute --resume
 
 # Separate small implementation check; never interpret its metrics scientifically.
-python scripts/run_comparisons.py --smoke-test --execute --output outputs/comparison_smoke
+python scripts/run_comparisons.py --suite configs/comparison_core.json \
+  --smoke-test --execute --output outputs/comparison_core_smoke
+
+# Optional full suite remains available; the CLI default also uses this suite.
+python scripts/run_comparisons.py --suite configs/comparison_suite.json --output outputs/comparisons_full
 ```
 
-The suite creates 24 arm/seed jobs, including 18 training runs. Training parameters
+The core suite creates 12 arm/seed jobs, including six training runs. The full
+suite creates 24 jobs, including 18 training runs. Training parameters
 come from `configs/train.json` or `--base-config PATH`. The frozen ESM3 and
 ProteinMPNN arms do not fine-tune. Checkpoints and results stay under the chosen
 output directory. Use a new directory for a changed dataset or configuration.
@@ -62,7 +75,9 @@ Each `comparison.json` stores sequences, input/mask identities, sample-average
 native recovery, mean pairwise design-position Hamming diversity, and unique
 sequence fraction. `summary.json` averages examples and seeds within each family,
 then weights families equally. It includes paired recovery differences against
-frozen ESM3 and 95% intervals from 2,000 family bootstrap draws. One family yields
+frozen ESM3 and, when present, ProteinMPNN, with 95% intervals from 2,000 family
+bootstrap draws. These are sequence-metric contrasts; structural noninferiority
+requires the separate planned AF3 endpoint. One family yields
 no confidence interval; repeated assembly copies or seeds do not become
 independent families. These intervals measure family variation after averaging
 seeds, not a separate estimate of training-seed uncertainty.
@@ -104,8 +119,8 @@ python scripts/import_bindcraft.py --input outputs/bindcraft_mertk/designs/Accep
 python scripts/cache_structure_tokens.py --examples data/application/examples.jsonl --device cuda
 
 # Uses existing trained checkpoints; never trains on these application examples.
-python scripts/run_bindcraft_comparison.py --trained-suite outputs/comparisons/plan.json
-python scripts/run_bindcraft_comparison.py --trained-suite outputs/comparisons/plan.json --execute
+python scripts/run_bindcraft_comparison.py --trained-suite outputs/comparisons_core/plan.json
+python scripts/run_bindcraft_comparison.py --trained-suite outputs/comparisons_core/plan.json --execute
 ```
 
 Create the job on the execution host: its generated paths are absolute. The job

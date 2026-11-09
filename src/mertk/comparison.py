@@ -239,15 +239,15 @@ def summarize(results):
     reference_metric = (
         "mean_seed_retention" if report["reference_kind"] == "bindcraft_seed" else "mean_recovery"
     )
-    delta_metric = (
-        "paired_seed_retention_delta_vs_frozen"
+    delta_prefix = (
+        "paired_seed_retention_delta_vs_"
         if report["reference_kind"] == "bindcraft_seed"
-        else "paired_recovery_delta_vs_frozen"
+        else "paired_recovery_delta_vs_"
     )
+    # Validate every arm before computing any paired contrasts, including MPNN.
     for name, cases in arms.items():
         if set(cases) != set(reference):
             raise ValueError(f"Missing matched examples/seeds in {name}")
-        grouped = {}
         for key, case in cases.items():
             base = reference[key]
             if any(
@@ -255,15 +255,26 @@ def summarize(results):
                 for field in ("source_sha256", "mask_sha256", "component", "design_residues")
             ):
                 raise ValueError(f"Unmatched inputs or masks in {name}: {key}")
-            grouped.setdefault(case["component"], []).append((case, base))
+    baselines = {"frozen": reference}
+    if "proteinmpnn" in arms:
+        baselines["proteinmpnn"] = arms["proteinmpnn"]
+    for name, cases in arms.items():
+        grouped = {}
+        for key, case in cases.items():
+            grouped.setdefault(case["component"], []).append(key)
         estimates = {}
         for metric in (reference_metric, "pairwise_diversity", "unique_fraction"):
-            values = [np.mean([case[metric] for case, _ in pairs]) for pairs in grouped.values()]
+            values = [np.mean([cases[key][metric] for key in keys]) for keys in grouped.values()]
             estimates[metric] = family_estimate(values, np.random.default_rng(42))
-        differences = [
-            np.mean([case[reference_metric] - base[reference_metric] for case, base in pairs])
-            for pairs in grouped.values()
-        ]
-        estimates[delta_metric] = family_estimate(differences, np.random.default_rng(42))
+        for baseline_name, baseline in baselines.items():
+            differences = [
+                np.mean(
+                    [cases[key][reference_metric] - baseline[key][reference_metric] for key in keys]
+                )
+                for keys in grouped.values()
+            ]
+            estimates[delta_prefix + baseline_name] = family_estimate(
+                differences, np.random.default_rng(42)
+            )
         report["arms"][name] = {"example_seed_pairs": len(cases), **estimates}
     return report

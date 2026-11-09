@@ -1,12 +1,20 @@
 # MerTK interface sequence design
 
-Implementation of [the project proposal](Report/final_project_proposal.pdf):
-fine-tune ESM3-open with LoRA and a target-atom geometric adapter, then test whether
-it improves reconstruction of interface sequences on held-out protein families.
-MerTK, AXL, and TYRO3 are reserved for the application stage.
+The protein-design goal is a MerTK-selective extracellular binder that preserves
+natural-ligand access, as a building block for future tests of macrophage
+efferocytosis. The computational question is whether **ESM3 with LoRA and a
+target-atom adapter can approach ProteinMPNN for interface sequence redesign,
+with both evaluated through the same AF3 complex-prediction protocol**.
 
-This is a research starting point. Improved binding, receptor agonism, and
-efferocytosis are hypotheses, not established outcomes of sequence reconstruction.
+See the [revised project direction](Report/revised_project_direction.md), responding
+to feedback on the [original proposal](Report/final_project_proposal.pdf), and the
+[design criteria and experiment plan](docs/experiment_plan.md). Native sequence
+reconstruction trains the model; it is a diagnostic rather than the final success
+criterion. MerTK, AXL, and TYRO3 remain reserved for the application stage.
+
+Sequence training, sampling and comparisons are implemented. Shared AF3 execution,
+structural pass-rate scoring and biological compatibility checks remain planned.
+Improved binding, receptor agonism, and efferocytosis have not been established.
 
 ## Environment and weights
 
@@ -29,7 +37,8 @@ Weights, datasets, environments, and training outputs are ignored by git.
 
 The upstream model moved to [Biohub](https://huggingface.co/biohub/esm3-sm-open-v1).
 The official [`esm` implementation](https://github.com/Biohub/esm) provides the
-model API. No AlphaFold 3 or RFD4 weights are required for this adapter experiment.
+model API. No AlphaFold 3 or RFD4 weights are required for adapter training.
+The planned AF3 assessment needs separate AF3 access and setup.
 
 The selected files total **2.87 GB**. On 2026-11-04 these were downloaded and
 verified locally. Downloads are not in the GitHub repository; run the script on
@@ -96,18 +105,24 @@ The data and processed features are local and ignored by git.
 
 ## Train and compare
 
-The [comparison guide](docs/comparisons.md) sets up eight matched arms:
-frozen ESM3, ProteinMPNN, an atom-only decoder, LoRA, geometry, combined,
-combined with backbone-only target atoms, and combined with sequence denoising.
-The suite uses three seeds, common design masks, sampled recovery/diversity,
-and paired family-level confidence intervals.
+Start with the [four-arm core comparison](configs/comparison_core.json):
+ProteinMPNN, frozen ESM3, LoRA, and LoRA plus the geometric adapter. It uses three
+seeds and common design masks. Current summaries report sampled recovery/diversity
+and paired family-level differences versus ProteinMPNN and frozen ESM3. These
+sequence statistics do not implement the planned AF3 structural endpoint.
+
+The [comparison guide](docs/comparisons.md) also retains the full eight-arm suite
+for adapter-only, atom-only decoder, backbone-only atom, and denoising follow-ups.
 
 ```bash
 python scripts/setup_external.py  # Pinned ProteinMPNN weights and BindCraft source
-python scripts/run_comparisons.py  # Write the 24-job plan without starting training
-python scripts/run_comparisons.py --execute
+python scripts/run_comparisons.py --suite configs/comparison_core.json \
+  --output outputs/comparisons_core  # Plan 12 jobs; six involve training
+python scripts/run_comparisons.py --suite configs/comparison_core.json \
+  --output outputs/comparisons_core --execute
 # Complete implementation check with tiny ESM3 modules and actual ProteinMPNN:
-python scripts/run_comparisons.py --smoke-test --execute --output outputs/comparison_smoke
+python scripts/run_comparisons.py --suite configs/comparison_core.json \
+  --smoke-test --execute --output outputs/comparison_core_smoke
 ```
 
 BindCraft has a separate CUDA environment installer, job preparer, accepted-complex
@@ -127,6 +142,7 @@ cluster job submission.
 python scripts/train.py --ablation combined --output outputs/combined
 python scripts/train.py --ablation lora --output outputs/lora
 python scripts/train.py --ablation geometry --output outputs/geometry
+# Optional follow-up after the core comparison:
 python scripts/train.py --objective denoise --output outputs/denoise
 
 # Resume an interrupted run with the same config, objective, and ablation.
@@ -162,7 +178,7 @@ bound. Those larger extensions should follow a successful reconstruction baselin
 ## Sample fixed-backbone sequences
 
 ```bash
-python scripts/design.py --checkpoint outputs/denoise/last.pt \
+python scripts/design.py --checkpoint outputs/combined/last.pt \
   --example data/processed/ASSEMBLY_BINDER_TARGET.npz \
   --samples 8 --steps 16 --output outputs/designs.fasta
 ```
