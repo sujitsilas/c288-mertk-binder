@@ -1,10 +1,53 @@
 """Single-complex batches retain full chain sequences and explicit chain boundaries."""
 
+import hashlib
 import json
+import math
 from pathlib import Path
 
 import numpy as np
 import torch
+
+
+def dataset_fingerprint(manifest):
+    def digest(path):
+        with Path(path).open("rb") as handle:
+            return hashlib.file_digest(handle, "sha256").hexdigest()
+
+    records = read_records(manifest)
+    entries = sorted((row["id"], digest(row["path"])) for row in records)
+    return hashlib.sha256(json.dumps([digest(manifest), entries]).encode()).hexdigest()
+
+
+def select_training_families(rows, fraction=1.0, seed=2026):
+    """Nested, deterministic family subsets, independent of model and training seed."""
+    if not 0 < fraction <= 1:
+        raise ValueError("train_family_fraction must be in (0, 1]")
+    families = sorted(
+        {row["component"] for row in rows},
+        key=lambda family: hashlib.sha256(f"{seed}:{family}".encode()).hexdigest(),
+    )
+    if not families:
+        raise ValueError("No training families")
+    chosen = set(families[: max(1, math.ceil(len(families) * fraction))])
+    return sorted((row for row in rows if row["component"] in chosen), key=lambda row: row["id"])
+
+
+class TrainingSampler:
+    def __init__(self, rows, mode="family"):
+        if mode not in {"family", "example"}:
+            raise ValueError("sampling must be family or example")
+        self.mode = mode
+        self.rows = rows
+        groups = {}
+        for row in rows:
+            groups.setdefault(row["component"], []).append(row)
+        self.groups = [sorted(groups[key], key=lambda row: row["id"]) for key in sorted(groups)]
+
+    def sample(self, rng):
+        return (
+            rng.choice(rng.choice(self.groups)) if self.mode == "family" else rng.choice(self.rows)
+        )
 
 
 def read_records(path, split=None):

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import time
 from itertools import combinations
 from pathlib import Path
 
@@ -9,10 +10,10 @@ import numpy as np
 import torch
 
 from mertk.data import AA
-from mertk.dataset import make_batch, read_records, synthetic_example
+from mertk.dataset import dataset_fingerprint, make_batch, read_records, synthetic_example
 from mertk.model import weight_identity
 from mertk.objectives import sample_sequence
-from mertk.runtime import autocast, resolve_device
+from mertk.runtime import autocast, resolve_device, resolve_precision, synchronize
 from mertk.training import audit_splits, build_model, file_hash
 
 
@@ -41,9 +42,7 @@ def sequence_metrics(reference, sequences, mask):
 def dataset_identity(manifest, smoke=False):
     if smoke:
         return "synthetic-smoke-v2"
-    records = read_records(manifest)
-    entries = [(row["id"], file_hash(row["path"])) for row in records]
-    return hashlib.sha256(json.dumps([file_hash(manifest), sorted(entries)]).encode()).hexdigest()
+    return dataset_fingerprint(manifest)
 
 
 def run_comparison(
@@ -74,6 +73,8 @@ def run_comparison(
     torch.manual_seed(config["seed"])
     if config.get("cpu_threads"):
         torch.set_num_threads(config["cpu_threads"])
+    started = time.perf_counter()
+    training_subset = None
     if smoke:
         rows = [{"id": "synthetic", "component": "synthetic", "split": "test"}]
     else:
@@ -118,14 +119,29 @@ def run_comparison(
                 "alpha",
                 "hidden",
                 "seed",
+                "sampling",
+                "data_seed",
+                "train_family_fraction",
             ):
                 if saved["metadata"]["config"].get(key) != config.get(key):
                     raise ValueError(f"Checkpoint arm mismatch: {key}")
             if not smoke and saved["metadata"]["manifest_sha256"] != file_hash(config["manifest"]):
                 raise ValueError("Checkpoint was trained on a different split manifest")
+            if (
+                not smoke
+                and "dataset_identity" in saved["metadata"]
+                and saved["metadata"]["dataset_identity"] != dataset_identity(config["manifest"])
+            ):
+                raise ValueError("Prepared training data differ from checkpoint inputs")
             model.load_adapter_state_dict(saved["adapter"])
+            if "training_examples" in saved["metadata"]:
+                training_subset = hashlib.sha256(
+                    json.dumps(saved["metadata"]["training_examples"]).encode()
+                ).hexdigest()
         elif arm != "frozen_esm3":
             raise ValueError("Trainable comparison arms require a checkpoint")
+    synchronize(device)
+    load_seconds = time.perf_counter() - started
     cases = []
     for row in rows:
         if smoke:
@@ -140,6 +156,8 @@ def run_comparison(
         sequences = []
         if arm != "proteinmpnn":
             batch = make_batch(example, model.tokenizer, device, require_structure=not smoke)
+        synchronize(device)
+        started = time.perf_counter()
         for i in range(samples):
             # Stable per-example seed: unchanged by row order, model size, or prior examples.
             seed = int(
@@ -163,6 +181,8 @@ def run_comparison(
                     )
                 )
             sequences.append(sequence)
+        synchronize(device)
+        sampling_seconds = time.perf_counter() - started
         metrics = sequence_metrics(reference, sequences, mask)
         if application_manifest:
             metrics["mean_seed_retention"] = metrics.pop("mean_recovery")
@@ -174,6 +194,7 @@ def run_comparison(
                 "mask_sha256": hashlib.sha256(mask.astype(np.uint8).tobytes()).hexdigest(),
                 "seed_sequence": reference,
                 "sequences": sequences,
+                "sampling_seconds": sampling_seconds,
                 **metrics,
             }
         )
@@ -186,7 +207,19 @@ def run_comparison(
         "dataset_identity": identity,
         "model_identity": model_identity,
         "sampling": {"samples": samples, "steps": sampling_steps, "temperature": temperature},
+        "sampling_protocol": config.get("sampling_protocol"),
         "checkpoint": str(checkpoint) if checkpoint else None,
+        "checkpoint_sha256": file_hash(checkpoint) if checkpoint else None,
+        "training_subset_sha256": training_subset,
+        "runtime": {
+            "device": str(device),
+            "torch": str(torch.__version__),
+            "precision": "fp32"
+            if smoke or arm == "proteinmpnn"
+            else resolve_precision(device, config.get("precision", "auto")),
+            "model_load_seconds": load_seconds,
+            "sampling_seconds": sum(case["sampling_seconds"] for case in cases),
+        },
         "cases": cases,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -206,18 +239,29 @@ def family_estimate(values, rng):
 def summarize(results):
     if not results:
         raise ValueError("No comparison results")
+    for result in results:
+        protocol = result.get("sampling_protocol")
+        if protocol and result["sampling"] != {
+            "samples": protocol["samples"],
+            "steps": protocol["steps"],
+            "temperature": protocol["temperatures"][result["arm"]],
+        }:
+            raise ValueError("Result differs from its declared sampling protocol")
     context = {
         (
             r["dataset_identity"],
             r["split"],
             r["smoke_test"],
             r.get("reference_kind", "native"),
-            json.dumps(r["sampling"], sort_keys=True),
+            json.dumps(r.get("sampling_protocol") or r["sampling"], sort_keys=True),
         )
         for r in results
     }
     if len(context) != 1:
         raise ValueError("Comparison results have different datasets, splits, or sampling settings")
+    subsets = {r["training_subset_sha256"] for r in results if r.get("training_subset_sha256")}
+    if len(subsets) > 1:
+        raise ValueError("Trainable arms used different training family subsets")
     arms = {}
     for result in results:
         arm = arms.setdefault(result["arm"], {})
@@ -258,6 +302,8 @@ def summarize(results):
     baselines = {"frozen": reference}
     if "proteinmpnn" in arms:
         baselines["proteinmpnn"] = arms["proteinmpnn"]
+    if "lora" in arms:
+        baselines["lora"] = arms["lora"]
     for name, cases in arms.items():
         grouped = {}
         for key, case in cases.items():

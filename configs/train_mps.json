@@ -19,5 +19,8 @@
   "alpha": 16,
   "dropout": 0.05,
   "hidden": 128,
-  "gradient_checkpointing": true
+  "gradient_checkpointing": true,
+  "sampling": "family",
+  "data_seed": 2026,
+  "train_family_fraction": 1.0
 }

@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from mertk.candidates import export_candidates
 from mertk.comparison import dataset_identity, summarize
 from mertk.dataset import read_records
 from mertk.training import audit_splits
@@ -16,15 +17,20 @@ from mertk.training import audit_splits
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-config", type=Path, default=Path("configs/train.json"))
-    parser.add_argument("--suite", type=Path, default=Path("configs/comparison_suite.json"))
-    parser.add_argument("--output", type=Path, default=Path("outputs/comparisons"))
+    parser.add_argument("--suite", type=Path, default=Path("configs/comparison_core.json"))
+    parser.add_argument("--output", type=Path, default=Path("outputs/comparisons_core"))
     parser.add_argument(
         "--execute", action="store_true", help="Run jobs; default only writes a reviewable plan"
     )
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--smoke-test", action="store_true")
+    parser.add_argument("--train-family-fraction", type=float)
+    parser.add_argument("--data-seed", type=int)
     args = parser.parse_args()
     base, suite = json.loads(args.base_config.read_text()), json.loads(args.suite.read_text())
+    for key in ("train_family_fraction", "data_seed"):
+        if getattr(args, key) is not None:
+            base[key] = getattr(args, key)
     if args.smoke_test:
         suite.update(seeds=suite["seeds"][:1], samples=2, sampling_steps=2)
         base.update(
@@ -47,6 +53,7 @@ def main():
         if missing:
             print(f"Plan only: missing dataset splits {sorted(missing)}")
     definition = {
+        "runner_version": 2,
         "base": base,
         "suite": suite,
         "dataset_identity": identity,
@@ -59,13 +66,28 @@ def main():
     if plan_file.exists() and json.loads(plan_file.read_text())["plan_id"] != plan_id:
         raise ValueError("Existing plan differs; choose another output directory")
     jobs = []
+    sampling_protocol = {
+        "samples": suite["samples"],
+        "steps": suite["sampling_steps"],
+        "temperatures": {
+            arm: suite.get("temperatures", {}).get(arm, suite["temperature"])
+            for arm in suite["arms"]
+        },
+    }
     for arm, overrides in suite["arms"].items():
         for seed in suite["seeds"]:
             directory = root / f"{arm}_seed{seed}"
-            config = dict(base, **overrides, seed=seed, output=str(directory))
+            config = dict(
+                base,
+                **overrides,
+                seed=seed,
+                output=str(directory),
+                sampling_protocol=sampling_protocol,
+            )
             config_file = root / f"{arm}_seed{seed}.json"
             config_file.write_text(json.dumps(config, indent=2) + "\n")
-            checkpoint = directory / "last.pt"
+            checkpoint = directory / "best.pt"
+            resume_checkpoint = directory / "last.pt"
             trainable = arm not in {"frozen_esm3", "proteinmpnn"}
             train_command = (
                 [sys.executable, "scripts/train.py", "--config", str(config_file)]
@@ -89,7 +111,7 @@ def main():
                 "--sampling-steps",
                 str(suite["sampling_steps"]),
                 "--temperature",
-                str(suite["temperature"]),
+                str(sampling_protocol["temperatures"][arm]),
                 "--split",
                 suite["split"],
                 "--expected-dataset",
@@ -106,6 +128,7 @@ def main():
                     "train": train_command,
                     "compare": compare,
                     "checkpoint": str(checkpoint),
+                    "resume_checkpoint": str(resume_checkpoint),
                     "result": str(result),
                 }
             )
@@ -123,12 +146,15 @@ def main():
         print(f"Running {job['arm']} seed {job['seed']}", flush=True)
         if job["train"]:
             command = job["train"]
-            if args.resume and Path(job["checkpoint"]).exists():
-                command += ["--resume", job["checkpoint"]]
+            if args.resume and Path(job["resume_checkpoint"]).exists():
+                command += ["--resume", job["resume_checkpoint"]]
             subprocess.run(command, check=True)
         subprocess.run(job["compare"], check=True)
-    report = summarize([json.loads(Path(job["result"]).read_text()) for job in jobs])
+    results = [json.loads(Path(job["result"]).read_text()) for job in jobs]
+    report = summarize(results)
     (root / "summary.json").write_text(json.dumps(report, indent=2) + "\n")
+    if not args.smoke_test:
+        export_candidates(read_records(base["manifest"]), results, root / "candidates.jsonl")
     print(f"Matched family-level summary: {root / 'summary.json'}")
 
 

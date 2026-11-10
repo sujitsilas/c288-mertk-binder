@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from mertk.bindcraft import export_candidates
+from mertk.candidates import export_candidates
 from mertk.comparison import dataset_identity, summarize
 from mertk.dataset import read_records
 from mertk.training import audit_splits
@@ -37,6 +37,7 @@ def main():
     identity = dataset_identity(args.manifest)
     root = args.output.resolve()
     definition = {
+        "runner_version": 2,
         "training_plan_id": trained["plan_id"],
         "dataset_identity": identity,
         "manifest": str(args.manifest.resolve()),
@@ -47,9 +48,17 @@ def main():
     if plan_file.exists() and json.loads(plan_file.read_text())["plan_id"] != plan_id:
         raise ValueError("Existing application plan differs; choose another output directory")
     jobs = []
+    sampling_protocol = {
+        "samples": suite["samples"],
+        "steps": suite["sampling_steps"],
+        "temperatures": {
+            arm: suite.get("temperatures", {}).get(arm, suite["temperature"])
+            for arm in suite["arms"]
+        },
+    }
     for trained_job in trained["jobs"]:
         arm, seed = trained_job["arm"], trained_job["seed"]
-        config = dict(base, **suite["arms"][arm], seed=seed)
+        config = dict(base, **suite["arms"][arm], seed=seed, sampling_protocol=sampling_protocol)
         config_file = root / f"{arm}_seed{seed}.json"
         config_file.write_text(json.dumps(config, indent=2) + "\n")
         result = root / f"{arm}_seed{seed}" / "comparison.json"
@@ -73,7 +82,7 @@ def main():
             "--sampling-steps",
             str(suite["sampling_steps"]),
             "--temperature",
-            str(suite["temperature"]),
+            str(sampling_protocol["temperatures"][arm]),
         ]
         if trained_job["train"]:
             checkpoint = Path(trained_job["checkpoint"])

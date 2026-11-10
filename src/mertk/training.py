@@ -9,7 +9,15 @@ from pathlib import Path
 
 import torch
 
-from mertk.dataset import load_batch, make_batch, read_records, synthetic_example
+from mertk.dataset import (
+    TrainingSampler,
+    dataset_fingerprint,
+    load_batch,
+    make_batch,
+    read_records,
+    select_training_families,
+    synthetic_example,
+)
 from mertk.model import InterfaceModel, load_backbone, weight_identity
 from mertk.objectives import corrupt, reconstruction_loss
 from mertk.runtime import (
@@ -96,6 +104,7 @@ def backward_microbatch(
 def evaluate(model, rows, device, tiny=False, seed=2026, precision="auto"):
     model.eval()
     total_loss, correct, total = 0.0, 0, 0
+    family_metrics = {}
     tokenizer = model.tokenizer
     from mertk.data import AA
 
@@ -123,6 +132,9 @@ def evaluate(model, rows, device, tiny=False, seed=2026, precision="auto"):
             raise FloatingPointError("Invalid validation recovery count")
         correct += matches
         total += count
+        family_metrics.setdefault(row.get("component", row["id"]), []).append(
+            (loss.item(), matches / count)
+        )
     if not total:
         raise ValueError("Evaluation has no masked residues")
     return {
@@ -130,6 +142,15 @@ def evaluate(model, rows, device, tiny=False, seed=2026, precision="auto"):
         "sequence_recovery": correct / total,
         "residues": total,
         "complexes": len(rows),
+        "family_loss": sum(
+            sum(x[0] for x in values) / len(values) for values in family_metrics.values()
+        )
+        / len(family_metrics),
+        "family_sequence_recovery": sum(
+            sum(x[1] for x in values) / len(values) for values in family_metrics.values()
+        )
+        / len(family_metrics),
+        "families": len(family_metrics),
     }
 
 
@@ -153,9 +174,10 @@ def train(config, smoke=False, resume=None):
         torch.set_num_threads(config["cpu_threads"])
     torch.manual_seed(config["seed"])
     rng = random.Random(config["seed"])
+    noise_rng = random.Random(config["seed"] + 1)
     mask_rng = torch.Generator().manual_seed(config["seed"])
     if smoke:
-        train_rows = val_rows = [{"id": "synthetic-smoke-only"}]
+        train_rows = val_rows = [{"id": "synthetic-smoke-only", "component": "synthetic"}]
     else:
         all_rows = read_records(config["manifest"])
         audit_splits(all_rows)
@@ -165,6 +187,10 @@ def train(config, smoke=False, resume=None):
             raise ValueError(
                 "Nonempty train and val families are required; download more complexes"
             )
+        train_rows = select_training_families(
+            train_rows, config.get("train_family_fraction", 1.0), config.get("data_seed", 2026)
+        )
+    sampler = TrainingSampler(train_rows, config.get("sampling", "family"))
     model = build_model(config, device, tiny=smoke)
     parameters = [p for p in model.parameters() if p.requires_grad]
     if not parameters:
@@ -186,6 +212,12 @@ def train(config, smoke=False, resume=None):
         "smoke_test": smoke,
         "weights": identity,
         "manifest_sha256": None if smoke else file_hash(config["manifest"]),
+        "dataset_identity": "synthetic-smoke-v2"
+        if smoke
+        else dataset_fingerprint(config["manifest"]),
+        "training_families": sorted({row["component"] for row in train_rows}),
+        "training_examples": [row["id"] for row in train_rows],
+        "selection_metric": "validation.family_sequence_recovery",
         "trainable_parameters": sum(p.numel() for p in parameters),
         "total_parameters": sum(p.numel() for p in model.parameters()),
         "runtime": {"device": str(device), "precision": precision, "torch": str(torch.__version__)},
@@ -193,9 +225,21 @@ def train(config, smoke=False, resume=None):
     revision = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
     metadata["git_revision"] = revision.stdout.strip() if revision.returncode == 0 else None
     start = 0
+    best = None
     if resume:
         saved = torch.load(resume, map_location="cpu", weights_only=True)
-        for key in ("config", "smoke_test", "weights", "manifest_sha256"):
+        if "best" not in saved or "noise_rng" not in saved:
+            raise ValueError(
+                "Resume needs a new-format last.pt checkpoint; start a new run for older checkpoints"
+            )
+        for key in (
+            "config",
+            "smoke_test",
+            "weights",
+            "manifest_sha256",
+            "dataset_identity",
+            "training_examples",
+        ):
             if saved["metadata"][key] != metadata[key]:
                 raise ValueError(f"Resume metadata mismatch: {key}")
         if saved["metadata"].get("runtime", metadata["runtime"]) != metadata["runtime"]:
@@ -203,10 +247,15 @@ def train(config, smoke=False, resume=None):
         model.load_adapter_state_dict(saved["adapter"])
         optimizer.load_state_dict(saved["optimizer"])
         rng.setstate(saved["python_rng"])
+        noise_rng.setstate(saved["noise_rng"])
         mask_rng.set_state(saved["mask_rng"])
         torch.set_rng_state(saved["torch_rng"])
         restore_accelerator_rng(device, saved.get("accelerator_rng", saved.get("cuda_rng")))
         start = saved["step"]
+        best = saved["best"]
+        # Restoring an older checkpoint also rolls back its selected model.
+        torch.save(best, output / "best.tmp.pt")
+        (output / "best.tmp.pt").replace(output / "best.pt")
         # Rolling back to an older saved step must not leave duplicate/future metrics.
         metrics_path = output / "metrics.jsonl"
         if metrics_path.exists():
@@ -238,10 +287,10 @@ def train(config, smoke=False, resume=None):
         for group in optimizer.param_groups:
             group["lr"] = lr
         for _ in range(config["accumulation_steps"]):
-            row = rng.choice(train_rows)
+            row = sampler.sample(rng)
             batch = get_batch(row, model, device, smoke)
             probability = (
-                rng.uniform(0.05, 1.0)
+                noise_rng.uniform(0.05, 1.0)
                 if config["objective"] == "denoise"
                 else config["mask_probability"]
             )
@@ -260,12 +309,31 @@ def train(config, smoke=False, resume=None):
         }
         if (step + 1) % config["eval_every"] == 0 or step + 1 == config["steps"]:
             metrics["validation"] = evaluate(model, val_rows, device, smoke, precision=precision)
+            score = metrics["validation"]["family_sequence_recovery"]
+            if best is None or score > best["selection"]["score"]:
+                best = {
+                    "step": step + 1,
+                    "adapter": {
+                        name: value.clone() for name, value in model.adapter_state_dict().items()
+                    },
+                    "metadata": metadata,
+                    "selection": {
+                        "metric": metadata["selection_metric"],
+                        "score": score,
+                        "split": "val",
+                    },
+                }
+                torch.save(best, output / "best.tmp.pt")
+                (output / "best.tmp.pt").replace(output / "best.pt")
+            metrics["best_step"] = best["step"]
             saved = {
                 "step": step + 1,
                 "adapter": model.adapter_state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "metadata": metadata,
                 "python_rng": rng.getstate(),
+                "noise_rng": noise_rng.getstate(),
+                "best": best,
                 "mask_rng": mask_rng.get_state(),
                 "torch_rng": torch.get_rng_state(),
                 "cuda_rng": torch.cuda.get_rng_state_all() if device.type == "cuda" else [],

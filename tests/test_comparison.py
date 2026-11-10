@@ -97,6 +97,22 @@ def test_summary_rejects_missing_seed_examples():
         summarize(data)
 
 
+def test_declared_per_arm_temperature_protocol_is_checked():
+    data = results()
+    protocol = {"samples": 2, "steps": 16, "temperatures": {"frozen_esm3": 1.0, "combined": 0.5}}
+    for result in data:
+        result["sampling_protocol"] = copy.deepcopy(protocol)
+        result["sampling"] = {
+            "samples": 2,
+            "steps": 16,
+            "temperature": protocol["temperatures"][result["arm"]],
+        }
+    assert "combined" in summarize(data)["arms"]
+    data[1]["sampling"]["temperature"] = 0.9
+    with pytest.raises(ValueError, match="declared sampling"):
+        summarize(data)
+
+
 def test_application_summary_labels_seed_retention_instead_of_native_recovery():
     data = results()
     for result in data:

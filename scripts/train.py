@@ -22,6 +22,9 @@ if __name__ == "__main__":
     parser.add_argument("--model-type", choices=["esm3", "atom_decoder"])
     parser.add_argument("--atom-context", choices=["all", "backbone"])
     parser.add_argument("--seed", type=int)
+    parser.add_argument("--train-family-fraction", type=float)
+    parser.add_argument("--data-seed", type=int)
+    parser.add_argument("--sampling", choices=["family", "example"])
     parser.add_argument(
         "--smoke-test",
         action="store_true",
@@ -39,6 +42,9 @@ if __name__ == "__main__":
         "model_type",
         "atom_context",
         "seed",
+        "train_family_fraction",
+        "data_seed",
+        "sampling",
     ):
         if getattr(args, key) is not None:
             config[key] = getattr(args, key)

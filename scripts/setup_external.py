@@ -9,7 +9,9 @@ from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tool", choices=["proteinmpnn", "bindcraft", "all"], default="all")
+    parser.add_argument(
+        "--tool", choices=["proteinmpnn", "bindcraft", "alphafold3", "all"], default="all"
+    )
     args = parser.parse_args()
     specs = json.loads(Path("configs/external_tools.json").read_text())
     for name, spec in specs.items():

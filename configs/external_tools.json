@@ -9,5 +9,10 @@
     "repository": "https://github.com/martinpacesa/BindCraft.git",
     "revision": "7713aa0d0d351e4117a8befeb8541f3a8ebd3368",
     "directory": "external/BindCraft"
+  },
+  "alphafold3": {
+    "repository": "https://github.com/google-deepmind/alphafold3.git",
+    "revision": "28c2d290559fe07387a12f471ad49f0d36206327",
+    "directory": "external/alphafold3"
   }
 }
