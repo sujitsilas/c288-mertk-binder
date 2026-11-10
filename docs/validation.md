@@ -63,8 +63,30 @@ install it on the training machine using the README instructions.
   application seed-retention labels, including mismatched-cohort rejection.
 - `pytest -q`: 36 passed, 1 skipped. Ruff checks and formatting checks passed.
 
-The revised structural pass-rate endpoint in the experiment plan is a proposed
-protocol. AF3 job execution, structural scoring, noninferiority assessment,
-biological compatibility screening, and cellular testing have not run. The current
-pilot still lacks independent validation families. No scientific performance
-comparison or new binder-function result follows from these implementation checks.
+At the reorientation commit, the structural pass-rate endpoint was a proposed
+protocol. The subsequent implementation is recorded below; the current pilot still
+lacks independent validation families. No scientific performance comparison or
+new binder-function result follows from these implementation checks.
+
+## Training and structural evaluator implementation — 2026-11-10
+
+- The four-arm suite is now the default. Family-balanced sampling, nested training
+  family subsets, separate data/noise RNG streams and validation-family checkpoint
+  selection are implemented. Both ordinary and accelerator resume checks passed.
+- The updated four-arm training/sampling smoke suite completed and resumed from
+  its existing results. Reports are in `outputs/core_training_v2_smoke/` locally.
+  Smoke results are blocked from becoming structural benchmark candidates.
+- Downloaded and inspected AF3 source pinned at
+  `28c2d290559fe07387a12f471ad49f0d36206327`. The actual serializer uses a numeric
+  clash flag and rounds summary scores; the scorer accepts the flag and selects
+  samples using the full-precision ranking CSV.
+- Fixture tests cover candidate export, immutable job inputs, target MSA matching,
+  fixed-position preservation, explicit chain/residue mapping, rigid transforms,
+  binder fold versus target-relative pose, ranking selection, missing/invalid
+  outputs, paired family comparisons and noninferiority guards.
+- `pytest -q`: 53 passed, 1 skipped. The accelerator resume test passed separately
+  outside the restricted sandbox. Ruff checks and formatting checks passed.
+
+AF3 model weights/environment have not been installed here and no real AF3 inference
+has run. Biological compatibility and functional assays remain unassessed. The
+structural thresholds and margin remain a draft protocol pending validation.

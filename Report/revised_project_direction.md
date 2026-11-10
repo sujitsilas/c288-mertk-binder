@@ -4,6 +4,11 @@ Working revision, 2026-11-09, responding to Professor Abedi's proposal feedback.
 The submitted PDF remains the original proposal. This draft separates the protein
 we want to build from the computational method we will test.
 
+Implementation update: the core trainer, validation-selected checkpoints, and
+[shared AF3 preparation/launch/scoring workflow](../docs/af3_evaluation.md) are now
+implemented. Structural scoring is fixture-tested; real AF3 predictions and
+biological validation are still outstanding.
+
 ## What I want to build, and why
 
 I want to develop a small, modular binder to the extracellular region of MerTK

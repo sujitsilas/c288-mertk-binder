@@ -3,7 +3,8 @@
 The [revised design brief](experiment_plan.md) prioritizes whether ESM3 plus its
 adapter approaches ProteinMPNN on the same backbone pool **under shared AF3
 assessment**, and whether the resulting candidates meet the MerTK protein-design
-criteria. AF3 execution and structural scoring remain unimplemented. Recovery and
+criteria. [AF3 preparation, launching and structural scoring](af3_evaluation.md)
+are implemented and fixture-tested; real AF3 inference has not run. Recovery and
 seed retention below are sequence diagnostics, not the final structural endpoint.
 
 Run commands from the repository root with the project environment active.
@@ -49,7 +50,7 @@ python scripts/run_comparisons.py --suite configs/comparison_core.json --output 
 python scripts/run_comparisons.py --suite configs/comparison_core.json \
   --smoke-test --execute --output outputs/comparison_core_smoke
 
-# Optional full suite remains available; the CLI default also uses this suite.
+# Optional full suite; the CLI now defaults to the four-arm core suite.
 python scripts/run_comparisons.py --suite configs/comparison_suite.json --output outputs/comparisons_full
 ```
 
@@ -58,6 +59,26 @@ suite creates 24 jobs, including 18 training runs. Training parameters
 come from `configs/train.json` or `--base-config PATH`. The frozen ESM3 and
 ProteinMPNN arms do not fine-tune. Checkpoints and results stay under the chosen
 output directory. Use a new directory for a changed dataset or configuration.
+
+The runner defaults to `configs/comparison_core.json` and `outputs/comparisons_core`.
+Families receive equal training sampling probability, with uniform examples inside
+each family. Validation reports both residue-weighted and family-averaged metrics.
+`best.pt` selects the highest validation family recovery; `last.pt` is for resume.
+AF3 scores never enter training or checkpoint selection in this implementation.
+
+To measure sample efficiency, repeat the core suite with `--train-family-fraction
+0.25`, `0.5`, and `1.0`, using separate output directories. Family subsets are nested
+and selected by the common `--data-seed` (default 2026), independently of model and
+training seed. The trainer records the selected families and examples. Training
+data and masking-noise RNG streams are separate, so a denoising objective does not
+change the sampled data order. These are fixed-step comparisons; also report the
+different number of effective passes over each subset.
+
+After validation tuning, an optional suite `temperatures` map can assign a value
+to each arm, for example `{"proteinmpnn": 0.1, "combined": 0.8}`. These are syntax
+examples, not tuned recommendations. Missing entries use the suite's `temperature`.
+Every result records the same full sampling protocol; summary validation checks
+each arm against its declared value. Use a new output directory after changing it.
 
 `setup_external.py` downloads pinned upstream source and ProteinMPNN's
 `vanilla_model_weights/v_48_020.pt` into ignored `external/`. Revisions are in
@@ -70,6 +91,10 @@ native design labels are explicitly removed before ProteinMPNN sampling. Target
 and non-design binder residues must remain unchanged. Prepared file and mask
 hashes are checked before pairing results. Resume validates the saved plan and
 reuses completed results; interrupted training resumes from `last.pt`.
+New-format resumable checkpoints include the selected best model and a separate
+noise RNG. Older checkpoints remain usable for inference with their original
+configuration but cannot resume the revised trainer. Start a new run directory;
+existing checkpoints and results are not overwritten by this migration.
 
 Each `comparison.json` stores sequences, input/mask identities, sample-average
 native recovery, mean pairwise design-position Hamming diversity, and unique
@@ -77,7 +102,7 @@ sequence fraction. `summary.json` averages examples and seeds within each family
 then weights families equally. It includes paired recovery differences against
 frozen ESM3 and, when present, ProteinMPNN, with 95% intervals from 2,000 family
 bootstrap draws. These are sequence-metric contrasts; structural noninferiority
-requires the separate planned AF3 endpoint. One family yields
+requires the separate AF3 endpoint. One family yields
 no confidence interval; repeated assembly copies or seeds do not become
 independent families. These intervals measure family variation after averaging
 seeds, not a separate estimate of training-seed uncertainty.
@@ -87,6 +112,12 @@ the comparison uses **sampled** recovery. Report these separately. Hyperparamete
 including each model's sampling temperature, should be tuned only on validation
 families before freezing a final test protocol. The initial shared temperature
 is a reproducible starting protocol, not a claim of optimal calibration.
+
+Real comparison runs also export `candidates.jsonl`, retaining one native-original
+control per complex and immutable reference/mask identities for AF3. Synthetic
+smoke results cannot be exported into the structural benchmark. Sequence sampling
+time is measured with device synchronization; checkpoint hashes and runtime details
+are recorded. AF3 time is recorded separately by its launcher.
 
 The current 20-assembly pilot has no validation family. Planning works, but real
 suite execution refuses it. Expand and audit the family-split data first.
@@ -141,10 +172,11 @@ design positions, and `structure_evaluation: pending`.
 
 Application summaries label similarity to the original as **seed retention**,
 not native recovery. They report diversity without assigning a binding score.
-Rescore original and redesigned candidates with the same independent complex
-prediction/relaxation protocol before comparing interface confidence, backbone
-consistency, clashes, and AXL/TYRO3 specificity. That structural scorer, glycan and
-ligand-access checks, and experimental agonism assays are not implemented here.
+Rescore original and redesigned candidates with the same
+[AF3 complex prediction protocol](af3_evaluation.md). The scorer measures fold/pose
+consistency, interface confidence and the AF3 severe-clash flag. Detailed local
+clash/relaxation analysis, AXL/TYRO3 specificity, glycan and ligand-access checks,
+and experimental agonism assays remain unimplemented.
 Do not compare original BindCraft confidence scores directly with unrescored
 redesigns or infer affinity from sequence retention.
 

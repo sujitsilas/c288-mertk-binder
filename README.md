@@ -12,8 +12,9 @@ to feedback on the [original proposal](Report/final_project_proposal.pdf), and t
 reconstruction trains the model; it is a diagnostic rather than the final success
 criterion. MerTK, AXL, and TYRO3 remain reserved for the application stage.
 
-Sequence training, sampling and comparisons are implemented. Shared AF3 execution,
-structural pass-rate scoring and biological compatibility checks remain planned.
+Sequence training, sampling, matched AF3 job preparation/launching, and structural
+pass-rate scoring are implemented. AF3 integration has been tested with output
+fixtures; real AF3 inference and biological compatibility checks have not run.
 Improved binding, receptor agonism, and efferocytosis have not been established.
 
 ## Environment and weights
@@ -38,7 +39,8 @@ Weights, datasets, environments, and training outputs are ignored by git.
 The upstream model moved to [Biohub](https://huggingface.co/biohub/esm3-sm-open-v1).
 The official [`esm` implementation](https://github.com/Biohub/esm) provides the
 model API. No AlphaFold 3 or RFD4 weights are required for adapter training.
-The planned AF3 assessment needs separate AF3 access and setup.
+The AF3 assessment needs a separate installed runtime and model parameters;
+see [the structural evaluation guide](docs/af3_evaluation.md).
 
 The selected files total **2.87 GB**. On 2026-11-04 these were downloaded and
 verified locally. Downloads are not in the GitHub repository; run the script on
@@ -109,7 +111,7 @@ Start with the [four-arm core comparison](configs/comparison_core.json):
 ProteinMPNN, frozen ESM3, LoRA, and LoRA plus the geometric adapter. It uses three
 seeds and common design masks. Current summaries report sampled recovery/diversity
 and paired family-level differences versus ProteinMPNN and frozen ESM3. These
-sequence statistics do not implement the planned AF3 structural endpoint.
+sequence statistics remain separate from the [AF3 structural endpoint](docs/af3_evaluation.md).
 
 The [comparison guide](docs/comparisons.md) also retains the full eight-arm suite
 for adapter-only, atom-only decoder, backbone-only atom, and denoising follow-ups.
@@ -128,7 +130,7 @@ python scripts/run_comparisons.py --suite configs/comparison_core.json \
 BindCraft has a separate CUDA environment installer, job preparer, accepted-complex
 importer, and application comparison runner. Original BindCraft sequences are
 retained as controls alongside redesigns; see the guide for commands. Complex
-structure evaluation remains a separate step, and application seed retention
+structure evaluation uses the shared AF3 workflow, and application seed retention
 is not treated as native recovery or improved binding.
 
 Run in an allocated CUDA GPU session on Hoffman2 or a lab workstation. The current
@@ -150,7 +152,7 @@ python scripts/train.py --output outputs/combined --resume outputs/combined/last
 
 # Same full-interface masks for every evaluation.
 python scripts/evaluate.py --split test --output outputs/frozen_test.json
-python scripts/evaluate.py --checkpoint outputs/combined/last.pt \
+python scripts/evaluate.py --checkpoint outputs/combined/best.pt \
   --split test --output outputs/combined_test.json
 ```
 
@@ -161,6 +163,13 @@ and output projections in all 48 attention blocks. Checkpoints contain adapters,
 optimizer/RNG state, base-weight identity, configuration, git revision, and split
 manifest hash. They do not duplicate ESM3's pretrained weights. Metrics report
 masked-token loss and 20-amino-acid interface recovery.
+
+Training samples families uniformly, then examples within each family. Validation
+also reports family-averaged recovery. `best.pt` is selected by that validation
+metric (earliest step wins ties); comparisons use it. `last.pt` retains optimizer
+and RNG states for exact resume. Both are adapter-only checkpoints. Use
+`--train-family-fraction` on the comparison runner for matched nested data subsets.
+These checkpoints optimize a reconstruction diagnostic, not AF3 confidence or affinity.
 
 The geometric adapter expresses target atoms in each binder residue's N/CA/C
 frame, embeds element/residue/backbone features and radial distances, pools them
@@ -178,7 +187,7 @@ bound. Those larger extensions should follow a successful reconstruction baselin
 ## Sample fixed-backbone sequences
 
 ```bash
-python scripts/design.py --checkpoint outputs/combined/last.pt \
+python scripts/design.py --checkpoint outputs/combined/best.pt \
   --example data/processed/ASSEMBLY_BINDER_TARGET.npz \
   --samples 8 --steps 16 --output outputs/designs.fasta
 ```

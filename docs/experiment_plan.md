@@ -3,8 +3,9 @@
 Reoriented on 2026-11-09 after Professor Abedi's feedback. The
 [revised proposal draft](../Report/revised_project_direction.md) states the protein
 concept and motivation. The working computational comparison is **ESM3+adapter
-versus ProteinMPNN, with AF3 assessing both**. AF3 inference and structural scoring
-are planned work; the present runnable summaries measure sequence statistics.
+versus ProteinMPNN, with AF3 assessing both**. The shared AF3 preparation/launcher
+and structural scorer are implemented and tested against output fixtures. Actual
+AF3 inference has not run. See [the structural evaluation guide](af3_evaluation.md).
 
 ## Protein design comes first
 
@@ -59,8 +60,9 @@ it is not a comparison of unrestricted end-to-end binder generators.
 
 `configs/comparison_core.json` runs the four core sequence-design arms across three
 seeds: 12 evaluation jobs and six training runs. The original eight-arm suite stays
-available. See [commands and model inputs](comparisons.md). These runners do not
-invoke AF3 yet. They train on reconstruction and export sampled sequences.
+available. See [commands and model inputs](comparisons.md). Sequence runners train
+on reconstruction and export matched candidates. The separate AF3 workflow consumes
+these candidates with a frozen input/sampling protocol.
 
 ESM3 already receives backbone geometry; the adapter adds local target heavy-atom
 context, not the model's first structural information. ProteinMPNN is a backbone
@@ -228,10 +230,11 @@ fine-tuning split; report it as a limitation of the frozen model baseline.
 - Expand and curate the pilot dataset; ensure enough independent validation and
   test families. Audit assemblies, missing residues, duplicate interfaces, sequence
   similarity, and domain-level leakage.
-- Run the four-arm core sequence comparison first. Implement AF3 job preparation,
-  output parsing, chain/residue mapping, geometry scoring and paired structural
-  reporting before claiming the revised endpoint has been measured. Follow up
-  with the broader ablations only as motivated by the core result.
+- Run the four-arm core sequence comparison first. Validate the implemented AF3
+  preparation, execution and scorer on actual predictions before measuring the
+  revised endpoint. Calibrate and freeze thresholds using validation data, then
+  run the matched structural benchmark. Follow up with broader ablations only as
+  motivated by the core result.
 - Measure speed, peak CUDA memory, and numerical behavior on the lab GPUs before
   long runs. The CUDA/bf16 code path has not been tested on this laptop.
 - Use the BindCraft setup/import/application runner with a selected MerTK
