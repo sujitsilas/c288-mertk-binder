@@ -1,0 +1,40 @@
+{
+  "aim": "aim2_shedding_protector",
+  "status": "Dedicated exploratory stalk-protector pilot in preparation; no validated protector",
+  "target": "Human MERTK Q12866",
+  "allowed_binding_domains": [
+    "Cleavage-site stalk A485-A498"
+  ],
+  "retired_binding_domains": [
+    "FNIIIa",
+    "FNIIIb"
+  ],
+  "initial_format": "Monovalent de novo binder targeting Y488/P490/S491",
+  "parent_input": "Independent stalk-targeted generation, not dependent on Ig1/Ig2 parents",
+  "mechanism_hypothesis": "Occupy the MERTK cleavage-site region to obstruct protease access. Geometry is a hypothesis; cleavage inhibition must be measured.",
+  "reported_cleavage_context": {
+    "bond": "P490-S491",
+    "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13378718/",
+    "role": "Target for the separately authorized November 17 exploratory protector campaign",
+    "experimental_structure_limit": "37NT ends at G484; it does not directly show the cleavage bond"
+  },
+  "primary_screen": [
+    "Compare each monovalent parent with matched nonbinding control under a declared shedding condition",
+    "Measure released soluble MERTK and intact surface MERTK together",
+    "Record total receptor and viability to distinguish preservation from loss of receptor or cells"
+  ],
+  "confirmation": [
+    "Use orthogonal receptor detection and test soluble-MERTK assay interference",
+    "Measure GAS6 and PROS1 function separately",
+    "Confirm MERTK-dependent apoptotic-cell internalization and useful repeated uptake",
+    "Exclude broad ADAM17 inhibition before attributing protection to MERTK-specific occupancy"
+  ],
+  "format_integration": "Dimerization and PS targeting are not prerequisites for the protection screen. Reassess protection, surface retention and uptake if a hit is later fused into a scaffold.",
+  "generation_ready": "Conditional on frozen-input validation and a successful matched GPU preflight",
+  "missing_evidence": [
+    "Reliable native stalk conformation",
+    "Native MERTK binding",
+    "Measured inhibition of shedding"
+  ],
+  "previous_strategy": "Screening shared Ig1/Ig2 parents produced no eligible parent; no protection was tested."
+}

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from mertk.data import AA
-from mertk.training import file_hash
+from mertk.provenance import file_hash
+from mertk.structures import AA
 
 
 def object_hash(value):
@@ -27,7 +27,7 @@ def validate_protocol(protocol):
         or any(type(s) is not int or s < 0 for s in seeds)
     ):
         raise ValueError("AF3 seeds must be distinct nonnegative integers")
-    for key in ("samples_per_seed", "num_recycles", "min_families_for_inference"):
+    for key in ("samples_per_seed", "num_recycles"):
         if type(protocol[key]) is not int or protocol[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
     if protocol["input_version"] != 1 or protocol["flash_attention_implementation"] not in {
@@ -36,83 +36,45 @@ def validate_protocol(protocol):
         "xla",
     }:
         raise ValueError("Unsupported AF3 input version or attention implementation")
-    if "proteinmpnn" not in protocol["required_arms"] or len(set(protocol["required_arms"])) != len(
-        protocol["required_arms"]
+    arms = protocol["required_arms"]
+    if (
+        not arms
+        or len(set(arms)) != len(arms)
+        or any(not isinstance(a, str) or not a for a in arms)
     ):
-        raise ValueError("Distinct required arms must include proteinmpnn")
+        raise ValueError("Provide distinct nonempty required arms")
     gates = protocol["gates"]
-    values = [*gates.values(), protocol["noninferiority_margin"]]
+    values = list(gates.values())
     if not all(type(x) in {int, float} and np.isfinite(x) for x in values):
         raise ValueError("Thresholds must be finite numbers")
     if not 0 <= gates["min_pair_iptm"] <= 1 or not 0 < gates["min_reference_coverage"] <= 1:
         raise ValueError("Invalid confidence or coverage threshold")
-    if (
-        min(gates["max_binder_fold_rmsd"], gates["max_binder_pose_rmsd"]) <= 0
-        or not 0 < protocol["noninferiority_margin"] < 1
-    ):
-        raise ValueError("Invalid RMSD threshold or noninferiority margin")
+    if min(gates["max_binder_fold_rmsd"], gates["max_binder_pose_rmsd"]) <= 0:
+        raise ValueError("Invalid RMSD threshold")
 
 
 def validate_cohort(candidates, required_arms):
+    """Compare independent designs on the same target and epitope strata."""
     if not candidates or len({c["candidate_id"] for c in candidates}) != len(candidates):
         raise ValueError("Candidate IDs must be nonempty and unique")
-    arms, references, controls = {}, {}, set()
-    contexts = set()
+    arms, contexts = {}, {}
     for candidate in candidates:
-        if candidate.get("smoke_test", True):
-            raise ValueError("AF3 benchmarking requires real, non-smoke candidates")
-        if candidate["split"] not in {"val", "test", "application_holdout"}:
-            raise ValueError("Cannot evaluate training examples as a structural benchmark")
-        if (
-            candidate["reference_kind"] not in {"native", "bindcraft_seed"}
-            or type(candidate["control"]) is not bool
-        ):
-            raise ValueError("Invalid candidate reference or control type")
-        if candidate["control"]:
-            expected_control = (
-                "native_original"
-                if candidate["reference_kind"] == "native"
-                else "bindcraft_original"
-            )
-            if (
-                candidate["arm"] != expected_control
-                or candidate["seed"] is not None
-                or candidate["sample_index"] != 0
-            ):
-                raise ValueError("Original controls need their own arm and no design seed")
-        elif any(
-            type(candidate[key]) is not int or candidate[key] < 0
-            for key in ("seed", "sample_index")
-        ):
-            raise ValueError("Design seed and sample index must be nonnegative integers")
-        contexts.add(
-            (candidate["dataset_identity"], candidate["split"], candidate["reference_kind"])
-        )
-        signature = tuple(
-            candidate[key]
-            for key in ("component", "reference_sha256", "mask_sha256", "target_sequence")
-        )
-        complex_id = candidate["complex_id"]
-        if complex_id in references and references[complex_id] != signature:
-            raise ValueError("Unmatched target, structure, family or design mask")
-        references[complex_id] = signature
-        if candidate["control"]:
-            if complex_id in controls:
-                raise ValueError("Only one original control is allowed per complex")
-            controls.add(complex_id)
-            continue
-        key = (complex_id, candidate["seed"], candidate["sample_index"])
-        arm = arms.setdefault(candidate["arm"], set())
-        if key in arm:
-            raise ValueError("Duplicate complex/seed/sample within an arm")
-        arm.add(key)
-    if len(contexts) != 1 or not set(required_arms) <= set(arms):
-        raise ValueError("Mixed datasets or missing required comparison arms")
-    reference = arms["proteinmpnn"]
-    if controls != {key[0] for key in reference}:
-        raise ValueError("Each complex needs its original sequence control")
-    if any(keys != reference for keys in arms.values()):
-        raise ValueError("Every arm must have identical complex/seed/sample coverage")
+        if not candidate["candidate_id"] or not candidate["arm"]:
+            raise ValueError("Candidate ID and arm must be nonempty")
+        if type(candidate["seed"]) is not int or candidate["seed"] < 0:
+            raise ValueError("Design seed must be a nonnegative integer")
+        if type(candidate["sample_index"]) is not int or candidate["sample_index"] < 0:
+            raise ValueError("Sample index must be a nonnegative integer")
+        context = (candidate["campaign_id"], candidate["epitope_id"])
+        signature = (candidate["target_sequence"], candidate["target_reference_sha256"])
+        if context in contexts and contexts[context] != signature:
+            raise ValueError("Unmatched target sequence or experimental reference within a stratum")
+        contexts[context] = signature
+        arms.setdefault(candidate["arm"], set()).add(context)
+    if not set(required_arms) <= set(arms):
+        raise ValueError("Missing required comparison arms")
+    if any(strata != set(contexts) for strata in arms.values()):
+        raise ValueError("Every arm must cover identical campaign/epitope strata")
 
 
 def checked_reference(candidate):
@@ -122,24 +84,10 @@ def checked_reference(candidate):
         reference = dict(data)
     binder, target = candidate["binder_sequence"], candidate["target_sequence"]
     native = str(reference["binder_sequence"])
-    mask = reference["design_mask"].astype(bool)
-    if hashlib.sha256(mask.astype(np.uint8).tobytes()).hexdigest() != candidate["mask_sha256"]:
-        raise ValueError("Reference design mask changed")
-    if str(reference["target_sequence"]) != target or len(native) != len(binder):
-        raise ValueError("Candidate sequence length or target differs from reference")
-    if not binder or not target or any(x not in AA + "X" for x in binder + target):
-        raise ValueError("Only standard protein residues and X are supported")
-    if candidate["control"]:
-        if binder != native:
-            raise ValueError("An original control must retain its original sequence")
-    elif any(a != b and not design for a, b, design in zip(binder, native, mask, strict=True)):
-        raise ValueError("Candidate changed a fixed binder residue")
-    if not candidate["control"] and any(
-        aa not in AA for aa, design in zip(binder, mask, strict=True) if design
-    ):
-        raise ValueError("Designed positions must be standard amino acids")
-    if (np.flatnonzero(mask) + 1).tolist() != candidate["design_positions_1based"]:
-        raise ValueError("Candidate design positions differ from reference")
+    if str(reference["target_sequence"]) != target or native != binder:
+        raise ValueError("Candidate sequence differs from its imported complex reference")
+    if not binder or not target or any(x not in AA for x in binder + target):
+        raise ValueError("Only standard protein residues are supported")
     return reference
 
 
@@ -171,7 +119,6 @@ def prepare_jobs(
     output,
     target_msas=None,
     samples_per_design_seed=None,
-    max_complexes=None,
 ):
     validate_protocol(protocol)
     candidates = [
@@ -181,18 +128,7 @@ def prepare_jobs(
     if samples_per_design_seed is not None:
         if samples_per_design_seed < 1:
             raise ValueError("Sample budget must be positive")
-        candidates = [
-            c for c in candidates if c["control"] or c["sample_index"] < samples_per_design_seed
-        ]
-    if max_complexes is not None:
-        if max_complexes < 1:
-            raise ValueError("Complex budget must be positive")
-        chosen = set(
-            sorted({c["complex_id"] for c in candidates}, key=lambda x: object_hash(x))[
-                :max_complexes
-            ]
-        )
-        candidates = [c for c in candidates if c["complex_id"] in chosen]
+        candidates = [c for c in candidates if c["sample_index"] < samples_per_design_seed]
     validate_cohort(candidates, protocol["required_arms"])
     output = Path(output).resolve()
     if output.exists() and any(output.iterdir()):

@@ -1,0 +1,158 @@
+{
+  "created_at_utc": "2026-11-12T18:53:14.990194+00:00",
+  "purpose": "First-principles structural review; separate components and experimental partial complexes",
+  "not_a_ternary_complex": true,
+  "cleavage_numbering_review": {
+    "alignment_correspondence": {
+      "human_position": 490,
+      "mouse_position": 485,
+      "human_aa": "P",
+      "mouse_aa": "P"
+    },
+    "human_cleavage_bond_experimentally_established_here": false,
+    "mapping_sha256": "178ba24cc6209bb1b16bfe2664e2b5cf55a5255bad319939758a15663ae2adfb",
+    "source": "Canonical human Q12866 / mouse Q60805 alignment prepared previously",
+    "Q12866_sequence_snapshot_sha256": "6cc736052efb73781648be4278ff7b750a6612bd1fc6729353d6656ff68aaeac",
+    "Q60805_sequence_snapshot_sha256": "27c640723d07eb9d46ddf0d0e3ba54aeca67f4dcb1386e93da4dfea6c900c0b8"
+  },
+  "sources": [
+    {
+      "file": "1NL2.cif",
+      "url": "https://files.rcsb.org/download/1NL2.cif",
+      "description": "Experimental bovine prothrombin fragment + Ca + lysoPS analogue; Gla mechanism surrogate, not GAS6/PROS1",
+      "sha256": "c5ba49bdc2546d61b042cfc45694be0bb28ccb2d56a8598861dd407f5b11a727",
+      "residue_names": [
+        "ALA",
+        "ARG",
+        "ASN",
+        "ASP",
+        "CA",
+        "CGU",
+        "CL",
+        "CYS",
+        "GLN",
+        "GLU",
+        "GLY",
+        "HIS",
+        "HOH",
+        "ILE",
+        "LEU",
+        "LPS",
+        "LYS",
+        "MET",
+        "NAG",
+        "PHE",
+        "PRO",
+        "SER",
+        "THR",
+        "TRP",
+        "TYR",
+        "VAL"
+      ]
+    },
+    {
+      "file": "1A8A.cif",
+      "url": "https://files.rcsb.org/download/1A8A.cif",
+      "description": "Experimental rat Annexin V + Ca + glycerophosphoserine; headgroup analogue, no acyl tails",
+      "sha256": "815582ee5dba50f4276a6aac86315fe97e3df63640155382bcf694a8d934911c",
+      "residue_names": [
+        "ALA",
+        "ARG",
+        "ASN",
+        "ASP",
+        "CA",
+        "CYS",
+        "GLN",
+        "GLU",
+        "GLY",
+        "GSE",
+        "HIS",
+        "HOH",
+        "ILE",
+        "LEU",
+        "LYS",
+        "MET",
+        "PHE",
+        "PRO",
+        "SER",
+        "THR",
+        "TRP",
+        "TYR",
+        "VAL"
+      ]
+    },
+    {
+      "file": "1ANX.cif",
+      "url": "https://files.rcsb.org/download/1ANX.cif",
+      "description": "Experimental human Annexin V + Ca; no PS membrane",
+      "sha256": "bb99159083fdfa42afbb3104c16ccc827f32f978841fd5c49387f87574d98b48",
+      "residue_names": [
+        "ALA",
+        "ARG",
+        "ASN",
+        "ASP",
+        "CA",
+        "CYS",
+        "GLN",
+        "GLU",
+        "GLY",
+        "HIS",
+        "HOH",
+        "ILE",
+        "LEU",
+        "LYS",
+        "MET",
+        "PHE",
+        "PRO",
+        "SER",
+        "SO4",
+        "THR",
+        "TRP",
+        "TYR",
+        "VAL"
+      ]
+    },
+    {
+      "file": "P5S_ideal.sdf",
+      "url": "https://files.rcsb.org/ligands/download/P5S_ideal.sdf",
+      "sha256": "96a990e0fd994e1bcbdbbec6e6be5cc2486a07857914d37686ccdcb61b58f93c",
+      "description": "CCD ideal distearoyl PS (18:0/18:0); illustrative chemical conformer, not isolated neutrophil PS or a bilayer"
+    },
+    {
+      "file": "37NT.cif",
+      "source": "data/references/37NT/37NT.cif",
+      "description": "Experimental human MERTK, folded ectodomain only",
+      "url": "https://files.rcsb.org/download/37NT.cif",
+      "sha256": "25f1c8f3b91f88c46c5a8d3735b3b8baaa81d45135c42e710be517a73019d66e"
+    },
+    {
+      "file": "AF-Q14393-F1-model_v6.cif",
+      "source": "data/references/pymol_review/AF-Q14393-F1-model_v6.cif",
+      "description": "Predicted human GAS6 monomer; unmodified sequence, no native Gla chemistry or calcium",
+      "url": "https://alphafold.ebi.ac.uk/files/AF-Q14393-F1-model_v6.cif",
+      "sha256": "dc51198cf387b285a53ae4b0988150943ae7e2a3d31bd5d88adc44dd1225ec97"
+    },
+    {
+      "file": "AF-P07225-F1-model_v6.cif",
+      "source": "data/references/pymol_review/AF-P07225-F1-model_v6.cif",
+      "description": "Predicted human PROS1 monomer; unmodified sequence, no native Gla chemistry or calcium",
+      "url": "https://alphafold.ebi.ac.uk/files/AF-P07225-F1-model_v6.cif",
+      "sha256": "812f7f67d2c6313cc24456ad961ef6c6d35c6c2ea52c4abfc725eb095b5bf743"
+    },
+    {
+      "file": "2C5D.cif",
+      "source": "data/references/pymol_review/2C5D.cif",
+      "description": "Experimental human AXL-GAS6 recognition complex; not MERTK",
+      "url": "https://files.rcsb.org/download/2C5D.cif",
+      "sha256": "a6909b7eaabbbb0d59ec96f5838d1944ca922b149193d196e6618a40b328a55f"
+    }
+  ],
+  "limitations": [
+    "No neutrophil membrane was isolated, reconstructed or simulated.",
+    "PS headgroup chemistry is shared across acyl variants; displayed P5S is a representative chemical model, not a neutrophil lipidomics result.",
+    "1NL2 is a bovine prothrombin surrogate; its deposited CGU/Ca/lipid geometry is not a GAS6 or PROS1 pose.",
+    "1A8A is rat Annexin V and a headgroup analogue, not a full lipid bilayer.",
+    "Predicted GAS6/PROS1 structures do not contain post-translational gamma-carboxylation, membrane or bound Ca.",
+    "Neither Annexin fusion has been structurally predicted or functionally tested here."
+  ]
+}

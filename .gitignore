@@ -10,6 +10,7 @@ __pycache__/
 .env.*
 !.env.example
 data/
+*.h5ad
 weights/
 outputs/
 runs/
@@ -18,4 +19,7 @@ runs/
 *.safetensors
 dist/
 build/
+tmp/
 external/
+Report/
+output/

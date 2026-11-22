@@ -1,0 +1,58 @@
+{
+  "Ig1_Q124": {
+    "crop": [
+      93,
+      285
+    ],
+    "hotspots": [
+      122,
+      147,
+      148
+    ],
+    "arm": "antagonist",
+    "description": "Ig1 I122/F147/Y148, selected from the top-ranked Q124-centred heuristic patch. Three exposed preferred anchors (relative SASA 0.74/0.42/0.57); patch centroid 15.8 A from N114, with 31% of patch members inside the assumed sequon exclusion radius. Accessibility is not established. Proximity to ligand-implicated positions motivates testing competition, not assuming antagonism.",
+    "selection_evidence": "triage score 0.751; anchor 0.846; concavity 0.684; glycan 0.690"
+  },
+  "FNIIIb_F472": {
+    "crop": [
+      286,
+      484
+    ],
+    "hotspots": [
+      469,
+      471,
+      472
+    ],
+    "arm": "compatibility",
+    "description": "FNIIIb V469/P471/F472, chosen to test a ligand-distal binding surface. The V469-centred patch has one exposed preferred anchor (F472), 40% of members inside the assumed sequon exclusion radius, and requires full-footprint glycan review. November 13 diagnosis: 0 accepted variants in 30 completed attempts; all 13 fully scored variants share one backbone, fail buried-polar filters and overlap the N294 glycan after native FNIIIb alignment. Deprioritize unchanged resampling; this does not establish that all FNIIIb sites are undesignable.",
+    "selection_evidence": "triage score 0.460; anchor 0.163; concavity 0.717; glycan 0.600"
+  },
+  "patchA": {
+    "crop": [
+      186,
+      381
+    ],
+    "hotspots": [
+      365,
+      367,
+      369
+    ],
+    "arm": "deprioritised",
+    "description": "FNIIIa I365/W367/A369. Holds the receptor's strongest hydrophobic anchors but scores 0.000 on glycan clearance: the centroid sits 10.5 A from sequon N316 with every patch residue inside a 15 A glycan shadow, and 10 of the 14 sequons carry modelled sugars in the insect-cell structure. Crop widened from the original A286-A484, which severed I283 and P284 just 3.2-3.7 A from the epitope centroid and produced binders that collided with Ig2 R210 once the intact receptor was restored.",
+    "selection_evidence": "triage score 0.507 at R315; anchor 0.635; concavity 0.842; glycan 0.000"
+  },
+  "Ig1_side": {
+    "crop": [
+      93,
+      285
+    ],
+    "hotspots": [
+      178,
+      183,
+      185
+    ],
+    "arm": "historical",
+    "description": "Historical Ig1 K178/E183/V185 site, retained to reproduce the November 12 campaign. The three selected hotspots contain no F/Y/W/I/L/M residue. Two scored trajectories had surface hydrophobicity 0.57 and 0.32; the cause of enrichment/failure is not established. Both RFD4 replicates overlapped the N170 glycan. This is distinct from the current I122/F147/Y148 site.",
+    "selection_evidence": "triage score 0.459 at best overlapping patch, rank 38 of 205; anchor 0.156"
+  }
+}

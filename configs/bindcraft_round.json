@@ -1,0 +1,52 @@
+{
+  "course_gpu_hour_cap": 24,
+  "af3_reserved_gpu_hours": 2,
+  "accounting_since": "2026-11-10",
+  "authorized_account": "pi_pallard",
+  "partition": "campus",
+  "qos": "campus24",
+  "gpu_constraint": "A100|H200|V100",
+  "gpu_accounting_policy": "Count one allocated hour on any allowed GPU as one hour of the shared 24-hour cap; this is wall-time accounting, not A100-equivalent work or billing.",
+  "experiments": {
+    "Ig1_E152": {
+      "epitope": "Ig1_E152",
+      "max_attempts": 200,
+      "num_seqs": 20,
+      "max_mpnn_sequences": 2,
+      "final_designs": 401,
+      "lengths": [
+        65,
+        130
+      ],
+      "seed": 111420261,
+      "advanced_preset": "default_4stage_multimer_hardtarget.json",
+      "walltime": "01:45:00"
+    },
+    "Ig2_L270": {
+      "epitope": "Ig2_L270",
+      "max_attempts": 200,
+      "num_seqs": 20,
+      "max_mpnn_sequences": 2,
+      "final_designs": 401,
+      "lengths": [
+        65,
+        130
+      ],
+      "seed": 111420262,
+      "advanced_preset": "default_4stage_multimer_hardtarget.json",
+      "walltime": "02:00:00"
+    }
+  },
+  "control_gate": "Reuse the frozen successful PD-L1 control at the unchanged BindCraft revision, and require a new one-step GPU glycan-loss forward/backward preflight before Ig generation.",
+  "stopping_policy": "Scheduler walltime takes precedence over attempt goals. MERTK final_designs is deliberately above the maximum possible variants, so a planned batch does not stop at the old four-design target. Report interruptions and actual counts.",
+  "nomination_policy": "Automatically assess at most one preliminary native-context-passing parent per Ig epitope with the same three-seed AF3 protocol as controls. This is computational triage, not a native-binding or biological nomination.",
+  "status": "Bounded experimental glycan-guard pilot, gated by CPU checks and a full GPU forward/backward preflight.",
+  "planning_budget": "6.0833 allocated GPU-hours maximum including 20-minute preflight, 3.75 hours generation and 2 hours AF3. Live accounting required.",
+  "workflow": "ig_followup_v1",
+  "reused_positive_control": "outputs/hpc/round_20261112_01/campaigns/pdl1_control/control_gate.json",
+  "controls_manifest": "outputs/controls/mertk_comparators_20261113/manifest.json",
+  "af3_gpu_constraint": "vmem80G|vmem141G|RTXPRO6000Bw",
+  "af3_weights_sha256": "74d0258616917cd122f5eab6d076afe4a8930e96823851e65e4f777dfb1f33ff",
+  "af3_cpus_per_task": 4,
+  "af3_gpu_compatibility": "Installed AF3 3.0.5 / JAX 0.10.2 / Tokamax 0.0.12 / CUDA compiler 12.9 supports Blackwell. RTX PRO 6000 97G-feature nodes are eligible alongside A100 80 GB and H200; four CPUs fit available node capacity. BindCraft remains on its separately validated A100/H200/V100 pool."
+}

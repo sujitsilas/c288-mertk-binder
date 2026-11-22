@@ -1,0 +1,47 @@
+{
+  "Ig1_Q124": {
+    "crop": [
+      93,
+      285
+    ],
+    "hotspots": [
+      122,
+      147,
+      148
+    ],
+    "arm": "historical_binding_baseline",
+    "description": "Ig1 I122/F147/Y148, selected from the top-ranked Q124-centred heuristic patch. Three exposed preferred anchors (relative SASA 0.74/0.42/0.57); patch centroid 15.8 A from N114, with 31% of patch members inside the assumed sequon exclusion radius. Accessibility is not established. Proximity to ligand-implicated positions motivates testing competition, not assuming antagonism. Existing job 1573761 may finish. Do not repeat this protein-only footprint unchanged: two current filter-passing variants overlap N114 carbohydrate.",
+    "selection_evidence": "triage score 0.751; anchor 0.846; concavity 0.684; glycan 0.690",
+    "domain": "Ig1",
+    "new_generation_ready": false
+  },
+  "Ig1_E152": {
+    "domain": "Ig1",
+    "crop": [
+      93,
+      285
+    ],
+    "hotspots": [
+      122,
+      148
+    ],
+    "arm": "binding_module_and_functional_formats",
+    "new_generation_ready": false,
+    "description": "E152-centred patch, narrowed to I122/Y148. Retains proximity to the Gokul Ig1 reference while removing F147 as a preferred anchor. This does not exclude F147 contacts or guarantee ligand compatibility. The patch has zero members within the assumed 15 A sequon radius, but requires actual glycan-volume avoidance during generation and native-pose screening.",
+    "selection_evidence": "Existing intact-receptor triage: score 0.612; 9 patch residues; nearest sequon N114 at centroid distance 19.4 A; observed patch-glycan minimum 12.32 A. Heuristic only."
+  },
+  "Ig2_L270": {
+    "domain": "Ig2",
+    "crop": [
+      93,
+      285
+    ],
+    "hotspots": [
+      270
+    ],
+    "arm": "alternative_binding_module_and_shedding_screen",
+    "new_generation_ready": false,
+    "description": "L270-centred Ig2 patch with L270 as the sole preferred anchor, retained with the full Ig pair. Higher-scoring I283/S285-centred patches extend into FNIIIa and are outside the active scope. This patch is glycan-risky and ligand-proximal, so it is an exploratory alternative, not an established superior epitope. L196 is 13.57 A from N170 by CA distance and is excluded by the conservative glycan mask; it is not a preferred anchor.",
+    "selection_evidence": "Existing intact-receptor triage: score 0.538; nearest sequon N170 at centroid distance 17.4 A; 36% of patch residues within the assumed sequon radius; observed patch-glycan minimum 8.86 A."
+  }
+}

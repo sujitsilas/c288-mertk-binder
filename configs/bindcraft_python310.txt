@@ -1,0 +1,27 @@
+# Wheel-based alternative for the pinned BindCraft source, Python 3.10 / Linux.
+# Keep within upstream JAX<=0.6 and Flax<0.10; no generator settings change.
+jax[cuda12]==0.4.35
+# Newer NVCC wheels expose a namespace package; old JAX expects __file__.
+nvidia-cuda-nvcc-cu12==12.6.77
+numpy==1.26.4
+scipy==1.14.1
+pandas==2.2.3
+matplotlib==3.9.2
+biopython==1.85
+seaborn==0.13.2
+chex==0.1.87
+dm-haiku==0.0.13
+flax==0.9.0
+dm-tree==0.1.8
+joblib==1.4.2
+ml-collections==0.1.1
+immutabledict==4.2.1
+optax==0.2.4
+openmm==8.2.0
+pdbfixer==1.12.0
+tqdm
+fsspec
+py3Dmol
+imageio-ffmpeg
+jupyter
+pyrosetta==2026.29+releasequarterly.80a0635615

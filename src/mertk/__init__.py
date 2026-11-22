@@ -1,1 +1,1 @@
-"""ESM3 interface sequence design experiments for C288."""
+"""Tools for structure-guided MERTK binder design and assessment."""

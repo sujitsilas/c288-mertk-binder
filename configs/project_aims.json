@@ -1,0 +1,44 @@
+{
+  "clarified_by_user": "2026-11-13",
+  "overall_objective": "Improve MERTK-dependent efferocytosis",
+  "aims": [
+    {
+      "id": "aim1_ig_binder",
+      "deliverable": "A selective, glycan-compatible binder to the MERTK Ig1 or Ig2 domain",
+      "design_inputs": "outputs/design/ig_only_20261113/manifest.json",
+      "binding_gate": [
+        "Native glycosylated MERTK binding",
+        "Whole-receptor and glycan compatibility",
+        "AXL/TYRO3 selectivity",
+        "GAS6/PROS1 competition classification"
+      ],
+      "functional_extension": "Compare monovalent, bivalent and PS-coupled formats for actual receptor pairing and apoptotic-cell internalization",
+      "not_assumed": [
+        "Binding implies agonism",
+        "Two binding arms imply two receptor molecules",
+        "Cargo adhesion implies internalization"
+      ]
+    },
+    {
+      "id": "aim2_shedding_protector",
+      "deliverable": "A MERTK-binding molecule that reduces MERTK ectodomain cleavage and preserves receptor function",
+      "design_specification": "configs/mertk_cleavage_protector.json",
+      "protection_gate": [
+        "Reduced soluble MERTK release",
+        "Preserved intact surface receptor",
+        "Preserved ligand-supported efferocytosis",
+        "No detection interference or receptor depletion"
+      ],
+      "starting_format": "Monovalent",
+      "not_assumed": [
+        "An Ig binder automatically protects the distant cleavage region",
+        "Reduced soluble receptor alone establishes protection"
+      ]
+    }
+  ],
+  "shared_scope": "Aim 1 targets Ig1/Ig2. The separately authorized Aim 2 pilot targets the cleavage-site stalk A485-A498. FNIIIb F472 remains retired; adjacent domains serve as context.",
+  "library_strategy": "Independent stalk generation for Aim 2 after shared Ig-parent triage yielded no eligible parent. Each aim retains separate evidence and advancement criteria.",
+  "separate_products_allowed": true,
+  "combined_product": "Only combine functions after each is demonstrated separately; a single multifunctional protein is not a prerequisite.",
+  "updated_at": "2026-11-17"
+}

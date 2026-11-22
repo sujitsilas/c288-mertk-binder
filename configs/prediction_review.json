@@ -1,0 +1,30 @@
+{
+  "output": "outputs/review/mertk_predictions.html",
+  "controls_manifest": "outputs/hpc/round_20261114_ig_guard_01/comparisons/results_manifest.json",
+  "reference": "data/references/37NT/37NT.cif",
+  "canonical_sequence": "outputs/species_review_20261111/Q12866.json",
+  "library": "assets/vendor/3dmol-2.5.5/3Dmol-min.js",
+  "template": "assets/prediction_review.html",
+  "control_choices": [
+    "TULP2",
+    "mCherry"
+  ],
+  "nomination": "Native-context screening is preliminary. Displaying a model or passing BindCraft filters is not experimental validation or AF3 nomination.",
+  "update_policy": "Refresh after successful local synchronization when model files, statistics, control artifacts or scheduler status change. Never resubmit jobs.",
+  "additional_suites": [
+    "outputs/hpc/round_20261112_01"
+  ],
+  "parent_refolds": {
+    "Ig1_E152_l125_s438876_mpnn8": "outputs/hpc/round_20261119_proposal_01/results/parents/Ig1_mpnn8/metrics.json",
+    "Ig1_E152_l125_s438876_mpnn12": "outputs/hpc/round_20261119_proposal_01/results/parents/Ig1_mpnn12/metrics.json"
+  },
+  "queue_suites": [
+    "outputs/hpc/round_20261117_protector_01",
+    "outputs/hpc/round_20261117_rfd4_repair_03",
+    "outputs/hpc/round_20261119_proposal_01"
+  ],
+  "repair_refold_directory": "outputs/hpc/round_20261119_proposal_01/results/repairs",
+  "rfd4_suites": [
+    "outputs/hpc/round_20261117_rfd4_repair_03"
+  ]
+}

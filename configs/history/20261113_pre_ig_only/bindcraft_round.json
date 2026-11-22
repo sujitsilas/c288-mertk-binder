@@ -1,0 +1,48 @@
+{
+  "course_gpu_hour_cap": 24,
+  "af3_reserved_gpu_hours": 2,
+  "accounting_since": "2026-11-10",
+  "authorized_account": "pi_pallard",
+  "partition": "campus",
+  "qos": "campus24",
+  "gpu_constraint": "A100|H200|V100",
+  "gpu_accounting_policy": "Count one allocated hour on any allowed GPU as one hour of the shared 24-hour cap; this is wall-time accounting, not A100-equivalent work or billing.",
+  "experiments": {
+    "pdl1_control": {
+      "epitope": null,
+      "max_attempts": 20,
+      "num_seqs": 20,
+      "max_mpnn_sequences": 2,
+      "final_designs": 2,
+      "lengths": [65, 150],
+      "seed": 11012026,
+      "advanced_preset": "default_4stage_multimer.json",
+      "walltime": "03:00:00"
+    },
+    "Ig1_Q124": {
+      "epitope": "Ig1_Q124",
+      "max_attempts": 200,
+      "num_seqs": 20,
+      "max_mpnn_sequences": 2,
+      "final_designs": 401,
+      "lengths": [65, 130],
+      "seed": 11022026,
+      "advanced_preset": "default_4stage_multimer_hardtarget.json",
+      "walltime": "12:00:00"
+    },
+    "FNIIIb_F472": {
+      "epitope": "FNIIIb_F472",
+      "max_attempts": 40,
+      "num_seqs": 20,
+      "max_mpnn_sequences": 2,
+      "final_designs": 81,
+      "lengths": [65, 130],
+      "seed": 11032026,
+      "advanced_preset": "default_4stage_multimer_hardtarget.json",
+      "walltime": "04:00:00"
+    }
+  },
+  "control_gate": "At least one native Accepted PDB with a matching final_design_stats row and passing basic geometry; no accepted control is inconclusive and blocks MERTK release.",
+  "stopping_policy": "Scheduler walltime takes precedence over attempt goals. MERTK final_designs is deliberately above the maximum possible variants, so a planned batch does not stop at the old four-design target. Report interruptions and actual counts.",
+  "nomination_policy": "Up to six independent MERTK trajectories after default BindCraft filters, intact-context/glycan review and separate three-seed AF3 assessment. No AF3 job without reviewed candidates."
+}

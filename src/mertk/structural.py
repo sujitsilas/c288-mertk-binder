@@ -10,8 +10,7 @@ from Bio.PDB.PDBExceptions import PDBConstructionException
 from Bio.SeqUtils import seq1
 
 from mertk.af3 import checked_reference, load_jobs, validate_cohort
-from mertk.comparison import family_estimate
-from mertk.training import file_hash
+from mertk.provenance import file_hash
 
 
 def rigid_fit(mobile, reference):
@@ -271,61 +270,19 @@ def summarize_structures(records, protocol, execution_verified=False):
         "biological_evaluation": "not_assessed",
         "arms": {},
     }
-    baselines = {
-        name: {(row["complex_id"], row["seed"], row["sample_index"]): row for row in arms[name]}
-        for name in ("proteinmpnn", "lora", "frozen_esm3")
-        if name in arms
-    }
     for arm, rows in arms.items():
         valid = [row for row in rows if row["prediction_status"] == "complete"]
-        estimate = {
+        passed = sum(row["structural_pass"] for row in valid)
+        report["arms"][arm] = {
             "planned_candidates": len(rows),
             "valid_predictions": len(valid),
             "valid_output_rate": len(valid) / len(rows),
-            "passing_candidates": sum(row["structural_pass"] for row in valid),
+            "passing_candidates": passed,
+            "pass_fraction_of_planned": passed / len(rows),
+            "complete_cohort_pass_rate": passed / len(rows) if complete else None,
         }
-        # No complete-case deletion: incomplete cohorts do not receive comparative estimates.
-        if complete:
-            grouped = {}
-            for row in rows:
-                grouped.setdefault(row["component"], []).append(row)
-            rates = [
-                np.mean([row["structural_pass"] for row in group]) for group in grouped.values()
-            ]
-            estimate["family_pass_rate"] = family_estimate(rates, np.random.default_rng(42))
-            if not rows[0]["control"]:
-                for baseline_name, baseline in baselines.items():
-                    differences = [
-                        np.mean(
-                            [
-                                int(row["structural_pass"])
-                                - int(
-                                    baseline[(row["complex_id"], row["seed"], row["sample_index"])][
-                                        "structural_pass"
-                                    ]
-                                )
-                                for row in group
-                            ]
-                        )
-                        for group in grouped.values()
-                    ]
-                    estimate[f"paired_pass_rate_delta_vs_{baseline_name}"] = family_estimate(
-                        differences, np.random.default_rng(42)
-                    )
-                paired = estimate["paired_pass_rate_delta_vs_proteinmpnn"]
-                eligible = (
-                    arm != "proteinmpnn"
-                    and execution_verified
-                    and protocol["protocol_state"] == "locked"
-                    and rows[0]["split"] == "test"
-                    and len(grouped) >= max(2, protocol["min_families_for_inference"])
-                )
-                estimate["noninferiority_supported"] = (
-                    bool(paired["ci_95"][0] > -protocol["noninferiority_margin"])
-                    if eligible
-                    else None
-                )
-        report["arms"][arm] = estimate
+    # A single receptor is not an independent-target benchmark. No paired-family
+    # statistics are inferred from unrelated backbone pools or repeated seeds.
     return report
 
 

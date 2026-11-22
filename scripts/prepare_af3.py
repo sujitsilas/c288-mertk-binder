@@ -21,7 +21,6 @@ if __name__ == "__main__":
         help="Explicit alternative protocol with no target MSA",
     )
     parser.add_argument("--samples-per-design-seed", type=int)
-    parser.add_argument("--max-complexes", type=int)
     args = parser.parse_args()
     protocol = json.loads(args.protocol.read_text())
     if args.single_sequence:
@@ -44,7 +43,6 @@ if __name__ == "__main__":
         args.output,
         msas,
         args.samples_per_design_seed,
-        args.max_complexes,
     )
     count = len(plan["jobs"]) * len(protocol["model_seeds"]) * protocol["samples_per_seed"]
     print(

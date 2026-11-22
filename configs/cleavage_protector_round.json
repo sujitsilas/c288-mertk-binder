@@ -1,0 +1,60 @@
+{
+  "course_gpu_hour_cap": 24,
+  "accounting_since": "2026-11-10",
+  "authorized_account": "pi_pallard",
+  "partition": "campus",
+  "qos": "campus24",
+  "gpu_constraint": "A100|H200|V100",
+  "gpu_accounting_policy": "Count one allocated hour on any allowed GPU as one hour of the shared 24-hour cap; this is wall-time accounting, not A100-equivalent work or billing.",
+  "reused_positive_control": "outputs/hpc/round_20261112_01/campaigns/pdl1_control/control_gate.json",
+  "af3_gpu_constraint": "vmem80G|vmem141G|RTXPRO6000Bw",
+  "af3_weights_sha256": "74d0258616917cd122f5eab6d076afe4a8930e96823851e65e4f777dfb1f33ff",
+  "workflow": "cleavage_protector_v1",
+  "aim": "aim2_shedding_protector",
+  "protector_screen": "exploratory",
+  "af3_reserved_gpu_hours": 0.3333333333333333,
+  "experiments": {
+    "Protector_base": {
+      "epitope": "Stalk_P490S491",
+      "review_domain": "Stalk",
+      "conformer": "base",
+      "max_attempts": 100,
+      "seed": 111720261,
+      "lengths": [
+        55,
+        90
+      ],
+      "walltime": "00:55:00"
+    },
+    "Protector_psi25": {
+      "epitope": "Stalk_P490S491",
+      "review_domain": "Stalk",
+      "conformer": "psi490_plus25",
+      "max_attempts": 100,
+      "seed": 111720262,
+      "lengths": [
+        55,
+        90
+      ],
+      "walltime": "00:55:00"
+    }
+  },
+  "af3_protocol": {
+    "engine": "AlphaFold3",
+    "state": "exploratory_stalk_assessment",
+    "model_seeds": [
+      101,
+      202,
+      303
+    ],
+    "samples_per_seed": 1,
+    "num_recycles": 10,
+    "templates": false,
+    "msa": "single_sequence",
+    "glycans_in_inference": false,
+    "flash_attention_implementation": "triton"
+  },
+  "planning_budget": "10-minute GPU preflight + two 55-minute generation caps + 20-minute conditional AF3 cap = 2h20 maximum.",
+  "nomination_policy": "Retain sequence-verified poses without score or geometry cutoffs. For the one AF3 slot, prefer sequence refolds, then scored backbones, then early-stopped backbones. Within each group prioritize proximity to both cleavage-bond atoms, then iPTM.",
+  "model_uncertainty": "AFDB stalk pLDDT ~33\u201340. Psi490 perturbations are sensitivity models, not experimentally observed or equilibrium conformers."
+}

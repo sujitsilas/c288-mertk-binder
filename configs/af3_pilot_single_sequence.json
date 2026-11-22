@@ -1,0 +1,21 @@
+{
+  "protocol_state": "locked",
+  "required_arms": [
+    "bindcraft",
+    "rfd4_proteina"
+  ],
+  "model_seeds": [
+    101
+  ],
+  "samples_per_seed": 5,
+  "num_recycles": 10,
+  "flash_attention_implementation": "triton",
+  "target_msa": "single_sequence",
+  "input_version": 1,
+  "gates": {
+    "min_pair_iptm": 0.8,
+    "max_binder_fold_rmsd": 2.0,
+    "max_binder_pose_rmsd": 3.0,
+    "min_reference_coverage": 0.9
+  }
+}

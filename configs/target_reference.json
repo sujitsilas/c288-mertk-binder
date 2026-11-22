@@ -1,0 +1,23 @@
+{
+  "pdb_id": "37NT",
+  "uniprot": "Q12866",
+  "source_url": "https://files.rcsb.org/download/37NT.cif",
+  "source_sha256": "25f1c8f3b91f88c46c5a8d3735b3b8baaa81d45135c42e710be517a73019d66e",
+  "target_sha256": "d010f2c398ef58a574504a2a0d87e2e5d55208e58aad99d32fc94258295da290",
+  "author_chain": "A",
+  "review_date": "2026-11-10",
+  "method": "X-ray diffraction",
+  "resolution_angstrom": 3.41,
+  "release_date": "2026-10-07",
+  "observed_protein_residues": 392,
+  "observed_author_range": [
+    93,
+    484
+  ],
+  "epitope_selected": false,
+  "notes": [
+    "Experimental glycan-bearing source is retained; exported PDB contains protein only.",
+    "Observed construct omits the complete human membrane-proximal stalk.",
+    "No ligand-bound pose or active receptor assembly is established by this reference."
+  ]
+}

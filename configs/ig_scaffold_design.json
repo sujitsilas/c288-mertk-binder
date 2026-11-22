@@ -1,0 +1,107 @@
+{
+  "status": "Architecture and target-input specification; no selected parent sequence, assembled prediction or experimental activity.",
+  "objective": "Increase MERTK-dependent internalization of apoptotic cells with useful receptor retention and repeated uptake.",
+  "target_epitopes": [
+    "Ig1_E152",
+    "Ig2_L270"
+  ],
+  "receptor_binding_domain_scope": [
+    "Ig1",
+    "Ig2"
+  ],
+  "parent_selection": "Independent backbone passing native glycan/accessibility checks, orthogonal structure assessment, expression and native-cell binding.",
+  "scaffold": "Initially Fc-free tandem display; use two copies of the same qualified MERTK parent for the dimerization comparison.",
+  "cargo_module": {
+    "candidate": "Human annexin A5 as an existing project PS-recognition starting point; module choice is not yet validated for this fusion.",
+    "required_evidence": [
+      "PS-dependent apoptotic-cell binding",
+      "Simultaneous receptor and cargo engagement",
+      "No loss of uptake from PS masking",
+      "Viable-cell binding and uptake control"
+    ],
+    "natural_ligand_benchmarks": [
+      "GAS6",
+      "PROS1"
+    ]
+  },
+  "formats": [
+    {
+      "id": "M1",
+      "mertk_arms": 1,
+      "ps_modules": 0,
+      "purpose": "Parent binding, ligand competition and shedding reference"
+    },
+    {
+      "id": "M2",
+      "mertk_arms": 2,
+      "ps_modules": 0,
+      "purpose": "Test engagement of two separate MERTK molecules"
+    },
+    {
+      "id": "M1_PS",
+      "mertk_arms": 1,
+      "ps_modules": 1,
+      "purpose": "Test cargo recruitment with one receptor-binding arm"
+    },
+    {
+      "id": "M2_PS",
+      "mertk_arms": 2,
+      "ps_modules": 1,
+      "purpose": "Lead architecture hypothesis combining receptor pairing and apoptotic-cell recruitment"
+    },
+    {
+      "id": "P1",
+      "mertk_arms": 1,
+      "ps_modules": 0,
+      "purpose": "Screen qualified Ig1/Ig2 parents for shedding protection; prioritize receptor retention over forced crosslinking"
+    },
+    {
+      "id": "M12",
+      "mertk_arms": 2,
+      "ps_modules": 0,
+      "purpose": "Compare Ig1-Ig2 tandem occupancy of one receptor versus bridging two receptors; no dimerization claim from valency alone."
+    }
+  ],
+  "assembly_requirements": [
+    "Choose linker length, rigidity and order from actual terminal exit directions of qualified bound parents; no fixed linker is yet justified.",
+    "Require a sterically possible complex with two distinct membrane-anchored MERTK molecules and PS-bearing cargo.",
+    "Retain all receptor domains and glycans as context even though binder epitopes are limited to Ig1/Ig2.",
+    "An Ig1-Ig2 tandem may occupy one receptor; do not count its two binding domains as proof of receptor dimerization.",
+    "Model confidence and predicted stoichiometry do not establish activation or increased efferocytosis."
+  ],
+  "protector": {
+    "binding_scope": "Ig1/Ig2 only; direct FNIIIb/stalk binder design is retired.",
+    "hypothesis": "Distal occupancy may alter cleavage accessibility or receptor conformation; no protective Ig epitope is established.",
+    "required_readouts": [
+      "Less released soluble MERTK",
+      "Preserved intact surface and total MERTK",
+      "Preserved GAS6 and PROS1 function tested separately",
+      "Improved internalized apoptotic-cell uptake under shedding stress"
+    ],
+    "confound_controls": [
+      "Independent detection epitopes and soluble-protein assay interference",
+      "Receptor internalization or depletion",
+      "Broad ADAM17 inhibition",
+      "Viability"
+    ],
+    "integration_rule": "Combine a proven protector with the active bridge only after each mechanism is measured separately; recheck the complete fusion."
+  },
+  "controls": [
+    "Matched nonbinding scaffold",
+    "PS module alone",
+    "Unfused mixture",
+    "Folded receptor-binding-defective and PS-binding-defective controls",
+    "Ligand alone and plus candidate",
+    "MERTK loss or validated pathway blockade with orthogonal control"
+  ],
+  "endpoint": "Donor-paired internalized apoptotic-cell cargo per viable macrophage, with repeated uptake and receptor retention; distinguish adhesion from internalization.",
+  "generation_ready": false,
+  "blockers": [
+    "No glycan-compatible qualified parent yet",
+    "No experimentally justified active receptor geometry",
+    "No Ig1/Ig2 shedding-protection result",
+    "Experimental glycan guard requires GPU integration preflight and output review"
+  ],
+  "project_aims": "configs/project_aims.json",
+  "role": "Functional format panel downstream of Aim 1, with P1 as the separate Aim 2 screening format"
+}

@@ -1,190 +1,94 @@
-# Baselines, ablations, and BindCraft controls
+# Comparing established design tools on MERTK
 
-The [revised design brief](experiment_plan.md) prioritizes whether ESM3 plus its
-adapter approaches ProteinMPNN on the same backbone pool **under shared AF3
-assessment**, and whether the resulting candidates meet the MerTK protein-design
-criteria. [AF3 preparation, launching and structural scoring](af3_evaluation.md)
-are implemented and fixture-tested; real AF3 inference has not run. Recovery and
-seed retention below are sequence diagnostics, not the final structural endpoint.
+Tool and source review: November 10, 2026. The biological question and experimental criteria are in the [proposal](repository_archive.md#proposal-drafts) and [validation plan](experiment_plan.md).
 
-Run commands from the repository root with the project environment active.
-Start with `configs/comparison_core.json`: frozen ESM3, LoRA, combined, and
-ProteinMPNN. `configs/comparison_suite.json` retains all eight arms for follow-up
-ablations. Both specify seeds 42/43/44, eight samples per
-complex, temperature 1.0, and 16 reveal steps for the ESM3/atom-decoder sampler.
-ProteinMPNN uses its own autoregressive sampler at the same temperature; these
-are different generative models, not identical decoding algorithms.
+## Tool roles and practical choice
 
-## Held-out interface reconstruction
+| Tool | Role | Decision for this project |
+|---|---|---|
+| BindCraft | Generates binders using AF2-guided design and its native sequence-design/filtering pipeline | Initial route, supported by published experimental binder results; preserve its original sequences |
+| RFD4-Proteina | Generates protein sequence and structure with target conditioning | Independent comparator using the same experimental MERTK construct; selectivity and MERTK activity remain unproven |
+| LigandMPNN | Sequence design on an existing structure, optionally using fixed side-chain context | Optional paired refinement of selected parent designs; keep target sequence fixed |
+| AF3 | Predicts a supplied sequence complex and reports structural confidence | Common assessment after generation; not a substitute for a binder generator or for experimental receptor coordinates |
 
-| Arm | Trainable parts | Information supplied |
-| --- | --- | --- |
-| `frozen_esm3` | None | Target/fixed binder sequences and both backbones/structure tokens |
-| `lora` | LoRA | Same as frozen ESM3 |
-| `geometry` | Atom adapter | ESM3 inputs plus target heavy-atom neighborhoods |
-| `combined` | LoRA + atom adapter | Same as geometry |
-| `combined_backbone_atoms` | LoRA + atom adapter | Same ESM3 inputs, only target backbone atoms retained in neighborhoods |
-| `denoise` | LoRA + atom adapter + time embedding | Combined inputs with variable masking during training |
-| `atom_decoder` | Atom adapter + small per-residue decoder | Same local target-atom features, no ESM3 or sequence-context model |
-| `proteinmpnn` | None | Pretrained standard ProteinMPNN, both N/CA/C/O backbones and fixed sequences |
+Sources: [BindCraft](https://doi.org/10.1038/s41586-025-09429-6), [RFD4-Proteina](https://github.com/RosettaCommons/RFD4-Proteina), [LigandMPNN](https://github.com/dauparas/LigandMPNN), [AF3 inputs](https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md).
 
-The backbone-only atom control filters the **same** up-to-32 target atom candidates;
-it does not refill removed side chains with more distant backbone atoms. Target
-residue identities remain available, including in backbone-atom feature labels.
-Thus this contrast measures removal of side-chain atoms at a fixed neighborhood,
-not removal of target sequence information. No adapter receives binder side chains.
+BindCraft is the practical starting choice, not a claim of biological superiority. There is no measured MERTK result here that establishes a winner. AF3 plus LigandMPNN alone does not replace the scaffold-generation problem. RFD4-Proteina already supplies sequences, so mandatory redesign would obscure what its native pipeline produces.
 
-```bash
-python scripts/setup_external.py
-# If examples predate the O-atom features, regenerate and recache them:
-python scripts/prepare_data.py
-bash scripts/cluster_data.sh
-python scripts/cache_structure_tokens.py --device cuda
+## Shared conditions and honest denominators
 
-# Plan the core comparison, then execute/resume once the dataset is ready.
-python scripts/run_comparisons.py --suite configs/comparison_core.json --output outputs/comparisons_core
-python scripts/run_comparisons.py --suite configs/comparison_core.json --output outputs/comparisons_core --execute
-python scripts/run_comparisons.py --suite configs/comparison_core.json --output outputs/comparisons_core --execute --resume
+Use the same experimental receptor file, sequence, reviewed epitope class, binder-length range (initially 65–120 residues), and final scoring protocol. Give each generator a prespecified GPU-hour allowance on the same GPU type and account for search/refolding costs. A proposed pilot allowance is 8 GPU-hours per method per epitope, across three recorded design seeds; revise this after a runtime-only pilot and before comparative generation. Report actual cost and failed attempts if either method cannot complete the allowance.
 
-# Separate small implementation check; never interpret its metrics scientifically.
-python scripts/run_comparisons.py --suite configs/comparison_core.json \
-  --smoke-test --execute --output outputs/comparison_core_smoke
+Archive total trajectories, generated structures, native-filter rejects, numerical failures, duplicates, completed AF3 assessments, nominations, expressed proteins and experimental hits. Report native yield and shared-filter yield separately. Retain original outputs; never compare only each tool's accepted designs and call that an overall success rate. Freeze clustering/diversity and nomination rules before examining experimental outcomes.
 
-# Optional full suite; the CLI now defaults to the four-arm core suite.
-python scripts/run_comparisons.py --suite configs/comparison_suite.json --output outputs/comparisons_full
-```
+AF3 confidence, RMSD and model-native metrics have different meanings. Do not compare their raw values across generators as if they were affinities. The structural scorer reports only the imported cohort's outcome; total-generation yield and GPU-hour efficiency require the complete upstream attempt ledger. The code permits unequal cohort sizes but requires every arm to cover the same campaign/epitope strata. Any departures from the planned budget belong in the report.
 
-The core suite creates 12 arm/seed jobs, including six training runs. The full
-suite creates 24 jobs, including 18 training runs. Training parameters
-come from `configs/train.json` or `--base-config PATH`. The frozen ESM3 and
-ProteinMPNN arms do not fine-tune. Checkpoints and results stay under the chosen
-output directory. Use a new directory for a changed dataset or configuration.
+For LigandMPNN, run a separate paired follow-up on identical parent backbones from both generators, with identical binder design positions, seeds and sequence counts. Retain `bindcraft`, `rfd4_proteina`, `bindcraft_ligandmpnn` and `rfd4_proteina_ligandmpnn` arm labels. Original versus refined sequences are paired by parent; unrelated de novo backbones are not paired observations. Do not treat multiple seeds on MERTK as independent receptor families.
 
-The runner defaults to `configs/comparison_core.json` and `outputs/comparisons_core`.
-Families receive equal training sampling probability, with uniform examples inside
-each family. Validation reports both residue-weighted and family-averaged metrics.
-`best.pt` selects the highest validation family recovery; `last.pt` is for resume.
-AF3 scores never enter training or checkpoint selection in this implementation.
+## Source setup and generation
 
-To measure sample efficiency, repeat the core suite with `--train-family-fraction
-0.25`, `0.5`, and `1.0`, using separate output directories. Family subsets are nested
-and selected by the common `--data-seed` (default 2026), independently of model and
-training seed. The trainer records the selected families and examples. Training
-data and masking-noise RNG streams are separate, so a denoising objective does not
-change the sampled data order. These are fixed-step comparisons; also report the
-different number of effective passes over each subset.
-
-After validation tuning, an optional suite `temperatures` map can assign a value
-to each arm, for example `{"proteinmpnn": 0.1, "combined": 0.8}`. These are syntax
-examples, not tuned recommendations. Missing entries use the suite's `temperature`.
-Every result records the same full sampling protocol; summary validation checks
-each arm against its declared value. Use a new output directory after changing it.
-
-`setup_external.py` downloads pinned upstream source and ProteinMPNN's
-`vanilla_model_weights/v_48_020.pt` into ignored `external/`. Revisions are in
-`configs/external_tools.json`; the loader rejects changed tracked source or weights.
-ProteinMPNN runs in the project environment. BindCraft uses a separate environment.
-
-Every arm receives identical split membership, per-complex design masks, and
-per-example sampling seeds. All design positions have N/CA/C/O coordinates;
-native design labels are explicitly removed before ProteinMPNN sampling. Target
-and non-design binder residues must remain unchanged. Prepared file and mask
-hashes are checked before pairing results. Resume validates the saved plan and
-reuses completed results; interrupted training resumes from `last.pt`.
-New-format resumable checkpoints include the selected best model and a separate
-noise RNG. Older checkpoints remain usable for inference with their original
-configuration but cannot resume the revised trainer. Start a new run directory;
-existing checkpoints and results are not overwritten by this migration.
-
-Each `comparison.json` stores sequences, input/mask identities, sample-average
-native recovery, mean pairwise design-position Hamming diversity, and unique
-sequence fraction. `summary.json` averages examples and seeds within each family,
-then weights families equally. It includes paired recovery differences against
-frozen ESM3 and, when present, ProteinMPNN, with 95% intervals from 2,000 family
-bootstrap draws. These are sequence-metric contrasts; structural noninferiority
-requires the separate AF3 endpoint. One family yields
-no confidence interval; repeated assembly copies or seeds do not become
-independent families. These intervals measure family variation after averaging
-seeds, not a separate estimate of training-seed uncertainty.
-
-The trainer's validation metrics use full-mask **single-pass argmax** recovery;
-the comparison uses **sampled** recovery. Report these separately. Hyperparameters,
-including each model's sampling temperature, should be tuned only on validation
-families before freezing a final test protocol. The initial shared temperature
-is a reproducible starting protocol, not a claim of optimal calibration.
-
-Real comparison runs also export `candidates.jsonl`, retaining one native-original
-control per complex and immutable reference/mask identities for AF3. Synthetic
-smoke results cannot be exported into the structural benchmark. Sequence sampling
-time is measured with device synchronization; checkpoint hashes and runtime details
-are recorded. AF3 time is recorded separately by its launcher.
-
-The current 20-assembly pilot has no validation family. Planning works, but real
-suite execution refuses it. Expand and audit the family-split data first.
-
-## BindCraft original versus interface redesign
-
-[BindCraft](https://github.com/martinpacesa/BindCraft) generates initial complexes.
-Its accepted original binder is an **application control**, not a native PDB
-sequence-recovery baseline. All redesign arms start from that same complex and
-change only the same eligible interface positions. Keep the original control for
-independent evaluation alongside every redesigned candidate.
-
-On a Linux NVIDIA CUDA host with Conda installed:
+Run repository utilities from the project root in the local environment. Upstream engines need separate supported environments; the Mac environment prepares inputs but does not run the CUDA pipelines.
 
 ```bash
 python scripts/setup_external.py --tool bindcraft
-# Uses the official installer in a separate BindCraft conda environment and
-# downloads its AF2 parameters. Match CUDA to the allocated host.
-bash scripts/install_bindcraft.sh --cuda 12.4 --pkg_manager conda
-
-# Supply a selected, continuous extracellular-domain construct, not the whole receptor.
-python scripts/prepare_bindcraft.py --target-pdb data/targets/mertk_domain.pdb \
-  --target-chain A --name MerTK --lengths 65 120 --designs 10 \
-  --output outputs/bindcraft_mertk
-# Optional --hotspots A25,A30-33 uses the input PDB's author numbering.
-bash outputs/bindcraft_mertk/run.sh
-
-python scripts/import_bindcraft.py --input outputs/bindcraft_mertk/designs/Accepted \
-  --binder-chain B --target-chain A --output data/application
-python scripts/cache_structure_tokens.py --examples data/application/examples.jsonl --device cuda
-
-# Uses existing trained checkpoints; never trains on these application examples.
-python scripts/run_bindcraft_comparison.py --trained-suite outputs/comparisons_core/plan.json
-python scripts/run_bindcraft_comparison.py --trained-suite outputs/comparisons_core/plan.json --execute
+python scripts/setup_external.py --tool rfd4_proteina
+python scripts/setup_external.py --tool ligandmpnn
+python scripts/setup_external.py --tool alphafold3
 ```
 
-Create the job on the execution host: its generated paths are absolute. The job
-copies its target PDB, upstream filters and advanced settings, records hashes and
-residue mappings, and checks the maximum binder plus target fits the 512-token
-budget. It refuses missing backbone atoms, ambiguous numbering gaps, nonexistent
-hotspots, and nonempty job directories. The upstream environment is captured in
-`external/BindCraft/environment-resolved.txt` and `pip-resolved.txt` after install;
-the wrapper pins source, not every transitive installer dependency.
+These commands clone pinned source only. Follow each pinned checkout's installation instructions for its runtime and weights; record resolved package versions and weight checksums. BindCraft has a project helper, `bash scripts/install_bindcraft.sh`, on Linux with CUDA and Conda.
 
-The importer retains `bindcraft_original.fasta` and source PDB provenance. It
-marks all imported examples `application_holdout`; the application runner checks
-exact sequence overlap with the training/validation/test manifest. Sequence-family
-and domain-level TAM exclusion still depend on the training-set curation audit.
-Original controls and all redesign sequences are exported together in
-`outputs/bindcraft_comparison/candidates.jsonl`, with source complexes, chain IDs,
-design positions, and `structure_evaluation: pending`.
+For BindCraft, use `scripts/prepare_bindcraft.py` with the reviewed target PDB and author-numbered hotspots. It validates chain/residue availability and preserves the target map, settings, filters and source revision. Its requested final-design count is not a compute budget: use the externally allocated runtime and retain all trajectory logs when it expires. Do not choose hotspot numbers simply because the example syntax accepts them.
 
-Application summaries label similarity to the original as **seed retention**,
-not native recovery. They report diversity without assigning a binding score.
-Rescore original and redesigned candidates with the same
-[AF3 complex prediction protocol](af3_evaluation.md). The scorer measures fold/pose
-consistency, interface confidence and the AF3 severe-clash flag. Detailed local
-clash/relaxation analysis, AXL/TYRO3 specificity, glycan and ligand-access checks,
-and experimental agonism assays remain unimplemented.
-Do not compare original BindCraft confidence scores directly with unrescored
-redesigns or infer affinity from sequence retention.
+For RFD4-Proteina, use its native condition-spec interface. Create a reviewed campaign YAML with `input` set to the experimental mmCIF and a target contig corresponding to the audited construct. The published backbone-coordinate and sequence conditions are `C_CRDGRP` and `C_SEQ`. Use the [native input documentation](https://rfd4-proteina.org/latest/how-to/input_prep/yaml-json.html) and [specificity example](https://github.com/RosettaCommons/RFD4-Proteina/blob/main/docs/examples/ppi_specificity_tutorial.ipynb) to encode the intended patch; do not silently substitute a predicted receptor.
 
-## Verified setup
+After installing the pinned RFD4 environment and preparing `campaign.yaml`, its native CLI is:
 
-The eight-arm synthetic suite has completed with tiny actual ESM3 modules and
-the downloaded standard [ProteinMPNN](https://github.com/dauparas/ProteinMPNN)
-weights. ProteinMPNN also sampled a real prepared pilot interface while preserving
-fixed positions. These are integration checks, not benchmark results. BindCraft
-source and example job preparation were checked; CUDA environment installation
-and MerTK generation have not run.
+```bash
+rfd4-generate inputs=campaign.yaml num_replicates=2 \
+  out_dir=./runs/mertk_rfd4 '~metrics'
+```
+
+This is a small generation-only pilot with upstream metrics disabled, not the complete budgeted comparison. Record the actual seed configuration and resolved weight revision. The campaign must choose its search/refolding policy explicitly before a comparative run. Common AF3 scoring remains separate. Do not install unrelated optional scoring plugins.
+
+For LigandMPNN, install its runtime and model parameters separately. The following upstream command illustrates a binder-only refinement, **assuming the inspected input uses target A and binder B**:
+
+```bash
+python external/LigandMPNN/run.py \
+  --model_type ligand_mpnn \
+  --checkpoint_ligand_mpnn external/LigandMPNN/model_params/ligandmpnn_v_32_010_25.pt \
+  --pdb_path outputs/selected_parent.pdb \
+  --out_folder outputs/ligandmpnn_parent \
+  --chains_to_design B --ligand_mpnn_use_side_chain_context 1 \
+  --seed 42 --batch_size 1 --number_of_batches 4
+```
+
+Run this with the LigandMPNN environment's Python. To restrict refinement to selected binder positions, use its documented `--redesigned_residues` and preserve those masks for each parent comparison. Fixed side-chain context can inform sequence choice; it does not guarantee correct glycans or a productive MERTK interface. Inspect the emitted sequences, chain mappings and structures before import. Do not rename an unchanged source PDB as a refined design without inserting the actual new sequence.
+
+## Import, provenance and common assessment
+
+Write a per-run JSON record containing `tool_revision` (required), weight identifiers/checksums, environment, resolved settings, seeds, target/epitope mapping, attempts/rejections/failures, GPU model and elapsed GPU time. The importer carries this record unchanged; it does not verify claims about external execution. Do not use a made-up seed for an unrecorded run; recover the generator log first.
+
+```bash
+python scripts/import_bindcraft.py \
+  --input outputs/bindcraft_pilot/designs/Accepted \
+  --output data/candidates/bindcraft \
+  --campaign-id mertk_pilot --epitope-id reviewed_patch_1 \
+  --target-reference data/references/37NT/37NT.cif \
+  --run-record outputs/bindcraft_run.json --seed 42
+
+python scripts/import_candidates.py \
+  --input outputs/rfd4_selected_complexes --output data/candidates/rfd4 \
+  --arm rfd4_proteina --campaign-id mertk_pilot --epitope-id reviewed_patch_1 \
+  --target-reference data/references/37NT/37NT.cif \
+  --run-record outputs/rfd4_run.json --seed 42 \
+  --target-chain A --binder-chain B
+
+python scripts/merge_candidates.py \
+  --inputs data/candidates/bindcraft/candidates.jsonl data/candidates/rfd4/candidates.jsonl \
+  --output data/candidates/pilot.jsonl
+```
+
+These examples require actual completed runs and inspected chain IDs. RFD4 may assign different chains; explicitly set them. Import each seed/epitope batch separately. The importer accepts PDB or `.cif`, requires complete observed protein backbones, rejects gaps instead of inventing coordinates, and stores sequence/mapping/structure hashes. Missing residues require an explicit, documented construct decision first.
+
+Proceed to the [AF3 guide](af3_evaluation.md). Glycan/ligand/membrane review and AXL/TYRO3 negative-target assessment are additional required steps; the current two-chain scorer does not perform them. The Annexin A5–PROS1 arm is a biological comparator with a different topology, not another miniprotein generator arm to pool into these structural statistics.

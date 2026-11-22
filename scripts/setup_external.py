@@ -10,7 +10,9 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--tool", choices=["proteinmpnn", "bindcraft", "alphafold3", "all"], default="all"
+        "--tool",
+        choices=["bindcraft", "alphafold3", "ligandmpnn", "rfd4_proteina", "all"],
+        default="all",
     )
     args = parser.parse_args()
     specs = json.loads(Path("configs/external_tools.json").read_text())
@@ -33,7 +35,15 @@ def main():
         else:
             directory.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(
-                ["git", "clone", "--no-checkout", spec["repository"], str(directory)], check=True
+                [
+                    "git",
+                    "clone",
+                    "--filter=blob:none",
+                    "--no-checkout",
+                    spec["repository"],
+                    str(directory),
+                ],
+                check=True,
             )
             subprocess.run(
                 ["git", "-C", str(directory), "checkout", "--detach", spec["revision"]], check=True

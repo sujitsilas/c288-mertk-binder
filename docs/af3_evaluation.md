@@ -1,158 +1,66 @@
-# Shared AF3 structural evaluation
+# Shared AF3 assessment of externally designed complexes
 
-Both ProteinMPNN and ESM3 variants redesign the same interfaces. This workflow
-assesses their sequences with the same AF3 inputs and prediction budget. It
-measures **predicted structural consistency**. Every output retains
-`biological_evaluation: not_assessed`; a structural pass does not establish affinity,
-specificity, ligand compatibility or efferocytosis.
+AF3 evaluates supplied candidate sequences after design. The receptor starting reference is experimental 37NT; AF3 predictions are a consistency check and do not replace it. This implementation handles **one target protein chain A and one binder protein chain B**, with no glycans, membranes or ligand chains in the scoring protocol. Separate biological review and specialized follow-up complexes are required.
 
-## Train and export matched candidates
+## Prepare the candidate cohort
 
-```bash
-python scripts/run_comparisons.py                    # Core suite, plan only
-python scripts/run_comparisons.py --execute          # Requires adequate train/val/test families
-python scripts/run_comparisons.py --execute --resume
-```
+Import completed designs and merge their manifests as described in [comparisons](comparisons.md). Every arm must cover the same campaign/epitope strata with matching target sequences and experimental-reference checksums. Each candidate has its own design-complex reference. Different generators may produce different binder backbones, so there is no requirement that their complex IDs or sequences be paired.
 
-Comparisons use `best.pt`, selected by validation family-averaged reconstruction
-recovery. Resume uses `last.pt`. The supervised objective remains masked sequence
-reconstruction; AF3 is a downstream evaluator and is not a training loss.
+The reference NPZ contains the imported sequence and backbone coordinates. Hash checks reject changes after import; sequence checks prevent scoring a reference under a different candidate sequence. Importing a structure records it as pending, not as a successful binder. Experimental-reference identity does not certify that the generator respected that structure: audit target sequence, coordinate distortion, crop mapping and glycans separately.
 
-Real runs export `outputs/comparisons_core/candidates.jsonl`, including an original
-sequence control per complex. The BindCraft application runner produces the same
-schema in `outputs/bindcraft_comparison/candidates.jsonl`. Candidate records include
-family/split, full sequences, design positions, reference NPZ/mask hashes and model
-provenance. Each non-control arm must contain identical complex/seed/sample keys.
-Synthetic training output is refused as structural benchmark input.
+## Protocol and job preparation
 
-## Prepare folding jobs
+The draft [protocol](../configs/af3_evaluation.json) uses one model seed, five predictions per seed, ten recycles, and the same target MSA policy for every arm. These are starting settings; confirm a feasible runtime budget and freeze the protocol before comparing nominated designs.
 
-`configs/af3_evaluation.json` starts in **draft** state. It specifies the required
-four arms, AF3 seed 101, five diffusion samples per candidate, ten recycles, and the
-structural thresholds described in the experiment plan. AF3's diffusion sampling
-is independent of the optional ESM sequence-denoising training objective.
-
-The primary protocol uses a cached target MSA, identical across arms and binder
-variants. Prepare it using the AF3 data pipeline or your existing MSA workflow and
-record its database version. Create a JSON mapping the SHA-256 of each complete
-target sequence to its A3M file; paths resolve relative to that mapping file:
-
-```json
-{
-  "FULL_SHA256_OF_TARGET_SEQUENCE": "mertk_target.a3m"
-}
-```
-
-The preparer prints the needed sequence hash if one is missing. The first A3M
-record must exactly match the target; other aligned rows must have matching length
-after removal of lowercase insertions. Both chains use empty structural template
-lists. The binder has no MSA. The designed complex is retained only as a scoring
-reference and is never passed to AF3 as a template.
+The default requires cached target A3M files. Supply a JSON object mapping the SHA-256 hash of each target sequence to its A3M path, resolved relative to that JSON file. The A3M query must exactly match the target construct. The binder uses a single sequence. Neither protein has structural templates in this assessment, to avoid imposing the proposed binder pose.
 
 ```bash
 python scripts/prepare_af3.py \
-  --candidates outputs/comparisons_core/candidates.jsonl \
-  --target-msas data/target_msas/index.json --output outputs/af3_core
+  --candidates data/candidates/pilot.jsonl \
+  --target-msas data/target_msas.json \
+  --output outputs/af3_pilot
 ```
 
-For an explicitly MSA-free exploratory protocol, use `--single-sequence` instead
-of `--target-msas`. This choice is recorded; it is not substituted silently for
-missing target MSAs. A locked protocol cannot be overridden with that flag.
+An explicit `--single-sequence` alternative prepares empty target MSAs as well. Use that only as a separately documented protocol shared across arms. It cannot override a locked protocol. `--samples-per-design-seed N` retains candidate sample indices below N, and is an input-selection aid rather than a guarantee of equal generation cost. Freeze any selection before comparing results and retain the complete attempt ledger.
 
-To bound an integration pilot, add `--max-complexes 6 --samples-per-design-seed 4`.
-Selection is deterministic and independent of model scores: complex IDs are
-ordered by their hash, and the first requested sample indices are retained for
-each method/seed. Original controls are preserved. This limits candidates, not
-independent families; inspect the selected cohort before committing resources.
+The prepared bundle contains input JSON, immutable reference copies and a hashed manifest. Output directories must be empty. No inference runs during preparation. The AF3 model may predict a different target arrangement; the design reference remains the experimental starting context and the proposed design pose.
 
-The output bundle contains `inputs/`, copied `references/`, and `manifest.json`.
-It is portable as a directory. Input hashes, reference hashes, protocol and cohort
-are immutable; changed settings require a new bundle. The printed prediction count
-includes every candidate, original control, AF3 seed and diffusion sample.
+## Execute in the AF3 environment
 
-## Execute in a separate AF3 environment
+Install the pinned AF3 source with its supported runtime and obtain authorized model parameters. The local project environment does not install AF3 or fetch its weights. First inspect the launch plan:
 
 ```bash
-python scripts/setup_external.py --tool alphafold3
+python scripts/run_af3.py \
+  --manifest outputs/af3_pilot/manifest.json \
+  --af3-python /path/to/af3/environment/bin/python \
+  --model-dir /path/to/af3/parameters
 ```
 
-This downloads source only. Follow the pinned upstream
-[installation instructions](https://github.com/google-deepmind/alphafold3/blob/28c2d290559fe07387a12f471ad49f0d36206327/docs/installation.md)
-to prepare the AF3 runtime and model parameters on the inference host. The project
-environment does not install AF3/JAX or obtain AF3 parameters automatically.
+Add `--execute` to run. The launcher verifies the pinned source, hashes parameter files, records the resolved environment and launches only prepared inputs. It disables the data pipeline because MSA inputs are already supplied. Use `--resume --execute` only with an identical plan and engine. Do not mix external server predictions with this local-run record.
 
-From the project environment, point the launcher at that separate interpreter:
+## Score and interpret
 
 ```bash
-# Review the command without launching inference.
-python scripts/run_af3.py --manifest outputs/af3_core/manifest.json \
-  --af3-python /path/to/af3-env/bin/python --model-dir /path/to/af3-parameters
-
-# Run all pending candidates in one AF3 process; add --resume after interruption.
-python scripts/run_af3.py --manifest outputs/af3_core/manifest.json \
-  --af3-python /path/to/af3-env/bin/python --model-dir /path/to/af3-parameters --execute
+python scripts/score_af3.py \
+  --manifest outputs/af3_pilot/manifest.json \
+  --predictions outputs/af3_pilot/predictions \
+  --output outputs/af3_pilot_scores
 ```
 
-The launcher requires the pinned, unmodified source checkout, hashes parameter
-files, and records Python/package versions. Resume requires the same engine and
-plan. It passes precomputed MSAs with the AF3 data pipeline disabled and preserves
-the common seed/sample/recycle settings. Incomplete jobs can resume; completed jobs
-with matching processed inputs are skipped. Wall time is recorded for the whole
-pending batch, including startup/compilation; it is not a per-arm AF3 timing.
+For each candidate, select the highest **unrounded AF3 ranking score**, then measure geometry on that selected sample. Never select the sample with the most favorable desired pose. All planned seed/sample outputs must be present; changed sequences, MSAs, templates, malformed confidences and extra samples invalidate the candidate result.
 
-## Score and inspect results
+| Draft gate | Meaning |
+|---|---|
+| Target–binder pair ipTM ≥ 0.8 | Model confidence in the predicted interface |
+| Binder fold Cα RMSD ≤ 2 Å | Consistency with the candidate's imported binder fold after binder alignment |
+| Binder pose Cα RMSD ≤ 3 Å | Consistency with the candidate pose after target alignment |
+| Reference coordinate coverage ≥ 0.9 | Enough matched coordinates for comparison |
+| No severe clash flag | AF3's reported clash assessment |
 
-```bash
-python scripts/score_af3.py --manifest outputs/af3_core/manifest.json \
-  --predictions outputs/af3_core/predictions --output outputs/af3_core_scores
-```
+Also report target-alignment RMSD, contact retention, directional interface PAE and binder atom pLDDT. None is a binding-affinity measurement. The geometry reference is the candidate complex, so substantial generator-induced changes to the experimental receptor must be assessed independently before nomination. No direct 37NT deformation gate is implemented in the scorer.
 
-The scorer checks the processed AF3 sequences/MSAs/templates, every planned
-seed/sample, chain identities, residue mappings and finite confidence values.
-It selects the highest-ranked prediction from the full-precision AF3 ranking CSV,
-using upstream seed/sample order to resolve exact ties. It never selects the
-prediction with the smallest reference RMSD. Summary confidence files round their
-scores, so selecting directly from those files could choose a different sample.
+Missing or invalid outputs remain in the planned denominator. `pass_fraction_of_planned` counts completed passes divided by all imported candidates, with incomplete outcomes explicitly labeled. `complete_cohort_pass_rate` is withheld until all arms are complete. `execution_verified` records matching local launch provenance; it does not establish biological validity. No independent-family inference, equivalence conclusion or automatic experimental nomination is made.
 
-For target A and binder B it reports:
+The summary describes the imported cohort, not all generator attempts. Compute-normalized yield requires external run logs. Confidence on MERTK combined with low confidence on AXL/TYRO3 does not prove selectivity; perform actual binding and functional assays. Multivalent constructs, the Annexin A5–PROS1 fusion and natural-ligand complexes need separate predictions and interpretation rather than forcing them through this two-chain schema.
 
-- Pair ipTM and the AF3 severe-clash flag (numeric 0/1 or boolean).
-- Binder Cα RMSD after fitting the binder, and binder Cα RMSD after fitting the
-  target. The second measurement detects an incorrect binding pose despite a
-  correct binder fold.
-- Target fit RMSD and reference-coordinate coverage. Alignment uses all finite
-  reference Cα positions in the prepared construct; collinear fits are rejected.
-- Retention of reference interchain Cα contacts at 8 Å, directional whole-chain
-  mean PAE, and mean binder atom pLDDT. The Cα contact diagnostic differs from the
-  CA-to-target-heavy-atom mask used for sequence design.
-
-The draft structural gate requires pair ipTM ≥0.8, binder fold RMSD ≤2 Å, target-
-aligned binder RMSD ≤3 Å, at least 90% reference Cα coverage in each chain, and no
-severe AF3 clash. These are starting engineering cutoffs, not validated binding-hit
-rules. Inspect detailed local clashes separately; the global clash flag can miss them.
-
-`candidates.jsonl` retains every planned candidate and selected-file hashes.
-Missing, malformed or mismatched predictions are explicitly marked. If any planned
-output is incomplete, `summary.json` reports counts and valid-output rates but
-withholds paired estimates for the cohort. Failed structural gates on otherwise
-valid predictions count as failures and remain in the denominator.
-
-Complete cohorts receive family-averaged pass rates and paired differences versus
-ProteinMPNN, LoRA and frozen ESM3, with 2,000 family bootstrap draws. Original
-controls are reported separately. Seeds, samples and repeated complexes are not
-independent families. The optional noninferiority flag requires a locked protocol,
-verified launcher provenance, a complete test cohort and the configured minimum
-number of families (default ten); it uses the lower bootstrap bound and a 0.05
-absolute margin. That minimum is a guard, not a power calculation. Bootstrap
-intervals describe sampled-family variation after averaging seeds and can be
-unreliable with few families. Draft, validation and application runs never assert
-noninferiority. Calibrate thresholds on validation, justify the margin and budget,
-then copy the protocol with `protocol_state: locked` before final test execution.
-
-## Validation status
-
-Unit/integration fixtures cover input matching, cached-MSA checks, fixed-position
-preservation, rigid-motion invariance, fold versus pose, AF3 ranking precision,
-missing/invalid predictions, and inference guards. The source revision and actual
-upstream JSON serialization were inspected. No AF3 model inference or real
-structural benchmark has been run in this repository yet.
+Reference: [official AF3 output definitions](https://github.com/google-deepmind/alphafold3/blob/main/docs/output.md).

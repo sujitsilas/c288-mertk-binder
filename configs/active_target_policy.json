@@ -1,0 +1,56 @@
+{
+  "updated_at_utc": "2026-11-17T17:32:22.875089+00:00",
+  "objective": "Improve MERTK-dependent efferocytosis through Ig1/Ig2 engagement, apoptotic-cell recruitment or receptor preservation.",
+  "allowed_domains": {
+    "Ig1": [
+      93,
+      185
+    ],
+    "Ig2": [
+      186,
+      285
+    ]
+  },
+  "epitopes": {
+    "Ig1_Q124": "Ig1",
+    "Ig1_E152": "Ig1",
+    "Ig2_L270": "Ig2"
+  },
+  "retired_domains": [
+    "FNIIIa",
+    "FNIIIb"
+  ],
+  "allowed_controls": [
+    "pdl1_control"
+  ],
+  "new_mertk_generation_enabled": true,
+  "readiness_reason": "Ig generation requires ig_followup_v1. Dedicated Aim 2 stalk generation requires cleavage_protector_v1 with frozen glycan/membrane constraints and a matching full GPU preflight.",
+  "existing_jobs_allowed_to_finish": [
+    "1573761",
+    "1573762"
+  ],
+  "historical_runs": "Retain frozen inputs and results for provenance. Retirement applies to new design targeting and submission; it does not remove native receptor context from structural checks.",
+  "required_generation_workflow": "ig_followup_v1",
+  "gpu_preflight_required": true,
+  "cleavage_protector": {
+    "enabled": true,
+    "aim": "aim2_shedding_protector",
+    "workflow": "cleavage_protector_v1",
+    "epitope": "Stalk_P490S491",
+    "binding_range": [
+      485,
+      498
+    ],
+    "hotspots": [
+      488,
+      490,
+      491
+    ],
+    "authorization": "November 17 user explicitly requested triage and execution of a separate cleavage-protector design after discussion of the unfinished Ig-only strategy.",
+    "context_only": [
+      386,
+      526
+    ],
+    "retired_FNIIIb_F472_remains_retired": true
+  }
+}

@@ -11,8 +11,8 @@ from Bio.PDB import MMCIFIO, Atom, Chain, Model, Residue, Structure
 from Bio.SeqUtils import seq3
 
 from mertk.af3 import load_jobs, prepare_jobs
-from mertk.structural import geometry_metrics, rigid_fit, score_bundle, summarize_structures
-from mertk.training import file_hash
+from mertk.provenance import file_hash
+from mertk.structural import geometry_metrics, rigid_fit, score_bundle
 
 
 @pytest.fixture
@@ -21,47 +21,29 @@ def candidate_fixture(tmp_path):
     t = np.arange(m, dtype=float)
     target_ca = np.column_stack((1.3 * t, 2 * np.sin(t), 2 * np.cos(t)))
     binder_ca = target_ca[:n] + [0, 4, 0]
-    mask = np.array([False] + [True] * (n - 1))
     reference = {
         "binder_sequence": np.array("A" * n),
         "target_sequence": np.array("G" * m),
         "binder_backbone": np.stack((binder_ca + [-1, 1, 0], binder_ca, binder_ca + [1, 0, 0]), 1),
         "target_backbone": np.stack((target_ca + [-1, 1, 0], target_ca, target_ca + [1, 0, 0]), 1),
-        "design_mask": mask,
     }
     source = tmp_path / "reference.npz"
     np.savez_compressed(source, **reference)
     base = {
-        "complex_id": "fixture",
-        "component": "family",
-        "split": "test",
+        "campaign_id": "fixture",
+        "epitope_id": "patch_a",
         "reference_npz": str(source),
         "reference_sha256": file_hash(source),
-        "mask_sha256": hashlib.sha256(mask.astype(np.uint8).tobytes()).hexdigest(),
-        "dataset_identity": "fixture-only",
+        "target_reference_sha256": "fixture-experimental-source",
         "target_sequence": "G" * m,
         "binder_sequence": "A" * n,
-        "design_positions_1based": list(range(2, n + 1)),
-        "reference_kind": "native",
-        "smoke_test": False,
-        "control": False,
     }
-    arms = ["frozen_esm3", "lora", "combined", "proteinmpnn"]
+    arms = ["bindcraft", "rfd4_proteina"]
     candidates = [
         {**base, "candidate_id": f"{arm}:42:{i}", "arm": arm, "seed": 42, "sample_index": i}
         for arm in arms
         for i in range(2)
     ]
-    candidates.append(
-        {
-            **base,
-            "candidate_id": "original",
-            "arm": "native_original",
-            "seed": None,
-            "sample_index": 0,
-            "control": True,
-        }
-    )
     path = tmp_path / "candidates.jsonl"
     path.write_text("".join(json.dumps(row) + "\n" for row in candidates))
     protocol = json.loads(Path("configs/af3_evaluation.json").read_text())
@@ -150,7 +132,7 @@ def test_preparation_uses_shared_msas_and_no_templates(candidate_fixture, tmp_pa
     plan = prepare_jobs(
         path, protocol, tmp_path / "bundle", {key: str(msa)}, samples_per_design_seed=1
     )
-    assert len(plan["jobs"]) == 5  # Four matched redesigns plus the original control.
+    assert len(plan["jobs"]) == 2
     target_inputs = []
     for job in plan["jobs"]:
         data = json.loads((tmp_path / "bundle" / job["input"]).read_text())
@@ -185,7 +167,7 @@ def test_af3_launcher_can_plan_without_weights_or_running_inference(candidate_fi
         )
     )
     assert result["execute"] is False
-    assert result["planned_candidates"] == 9
+    assert result["planned_candidates"] == 4
     assert "--run_data_pipeline=false" in result["command"]
     assert "--num_diffusion_samples=2" in result["command"]
     assert not (bundle / "predictions").exists()
@@ -195,12 +177,12 @@ def test_preparation_rejects_unmatched_cohort_fixed_mutations_and_wrong_msa(
     candidate_fixture, tmp_path
 ):
     path, protocol, _, candidates = candidate_fixture
-    path.write_text("".join(json.dumps(row) + "\n" for row in candidates[1:]))
-    with pytest.raises(ValueError, match="identical"):
+    path.write_text("".join(json.dumps(row) + "\n" for row in candidates[2:]))
+    with pytest.raises(ValueError, match="Missing required"):
         prepare_jobs(path, protocol, tmp_path / "missing")
     candidates[0]["binder_sequence"] = "W" + "A" * 7
     path.write_text("".join(json.dumps(row) + "\n" for row in candidates))
-    with pytest.raises(ValueError, match="fixed binder"):
+    with pytest.raises(ValueError, match="differs from"):
         prepare_jobs(path, protocol, tmp_path / "mutation")
     candidates[0]["binder_sequence"] = "A" * 8
     path.write_text("".join(json.dumps(row) + "\n" for row in candidates))
@@ -235,8 +217,7 @@ def test_structural_pipeline_ranks_by_af3_not_desired_pose(candidate_fixture, tm
     predictions = fake_outputs(bundle, plan, reference, bad_top_pose=True)
     report = score_bundle(bundle / "manifest.json", predictions, tmp_path / "scores")
     assert report["complete_cohort"] and not report["execution_verified"]
-    assert report["arms"]["combined"]["family_pass_rate"]["mean"] == 0
-    assert report["arms"]["combined"]["noninferiority_supported"] is None
+    assert report["arms"]["rfd4_proteina"]["complete_cohort_pass_rate"] == 0
     rows = [
         json.loads(line) for line in (tmp_path / "scores/candidates.jsonl").read_text().splitlines()
     ]
@@ -264,7 +245,7 @@ def test_af3_selection_uses_unrounded_ranking_scores(candidate_fixture, tmp_path
             summary_path.write_text(json.dumps(summary))
     report = score_bundle(bundle / "manifest.json", predictions, tmp_path / "scores")
     assert report["complete_cohort"]
-    assert report["arms"]["combined"]["family_pass_rate"]["mean"] == 1.0
+    assert report["arms"]["rfd4_proteina"]["complete_cohort_pass_rate"] == 1.0
 
 
 @pytest.mark.parametrize(
@@ -300,90 +281,34 @@ def test_invalid_outputs_do_not_disappear_from_comparisons(candidate_fixture, tm
         )
     report = score_bundle(bundle / "manifest.json", predictions, tmp_path / "scores")
     assert not report["complete_cohort"]
-    assert report["arms"]["frozen_esm3"]["planned_candidates"] == 2
-    assert report["arms"]["frozen_esm3"]["valid_output_rate"] == 0.5
-    assert "paired_pass_rate_delta_vs_proteinmpnn" not in report["arms"]["combined"]
+    assert report["arms"]["bindcraft"]["planned_candidates"] == 2
+    assert report["arms"]["bindcraft"]["valid_output_rate"] == 0.5
+    assert report["arms"]["rfd4_proteina"]["complete_cohort_pass_rate"] is None
 
 
-def test_noninferiority_requires_locked_protocol_and_verified_independent_test_families(
-    candidate_fixture,
+def test_independent_design_backbones_and_unequal_yield_are_supported(candidate_fixture, tmp_path):
+    path, protocol, reference, candidates = candidate_fixture
+    # Independent generators do not share binder backbones or yield the same count.
+    alternate = dict(reference)
+    alternate["binder_backbone"] = reference["binder_backbone"] + [0, 0, 1]
+    alternate_path = tmp_path / "alternate.npz"
+    np.savez_compressed(alternate_path, **alternate)
+    candidates[-1].update(
+        reference_npz=str(alternate_path), reference_sha256=file_hash(alternate_path)
+    )
+    selected = candidates[1:]
+    path.write_text("".join(json.dumps(row) + "\n" for row in selected))
+    plan = prepare_jobs(path, protocol, tmp_path / "independent")
+    assert len(plan["jobs"]) == 3
+    assert len({job["candidate"]["reference_sha256"] for job in plan["jobs"]}) == 2
+
+
+@pytest.mark.parametrize("field", ["target_sequence", "target_reference_sha256", "epitope_id"])
+def test_cross_tool_comparison_rejects_different_target_or_epitope(
+    candidate_fixture, tmp_path, field
 ):
-    _, protocol, _, candidates = candidate_fixture
-    rows = []
-    for i in range(10):
-        for candidate in candidates:
-            rows.append(
-                {
-                    **candidate,
-                    "candidate_id": f"{i}:{candidate['candidate_id']}",
-                    "complex_id": f"complex{i}",
-                    "component": f"family{i}",
-                    "prediction_status": "complete",
-                    "structural_pass": candidate["arm"] != "lora",
-                }
-            )
-    assert (
-        summarize_structures(rows, protocol, True)["arms"]["combined"]["noninferiority_supported"]
-        is None
-    )
-    protocol["protocol_state"] = "locked"
-    assert (
-        summarize_structures(rows, protocol, False)["arms"]["combined"]["noninferiority_supported"]
-        is None
-    )
-    summary = summarize_structures(rows, protocol, True)
-    assert summary["arms"]["combined"]["noninferiority_supported"] is True
-    assert summary["arms"]["lora"]["noninferiority_supported"] is False
-    assert summary["arms"]["combined"]["paired_pass_rate_delta_vs_lora"]["mean"] == 1.0
-    for row in rows:
-        row["split"] = "application_holdout"
-    assert (
-        summarize_structures(rows, protocol, True)["arms"]["combined"]["noninferiority_supported"]
-        is None
-    )
-
-
-def test_generic_candidate_export_connects_sequence_results_to_af3(candidate_fixture, tmp_path):
-    from mertk.candidates import export_candidates
-    from mertk.comparison import sequence_metrics
-
-    _, protocol, reference, candidates = candidate_fixture
-    first = candidates[0]
-    row = {
-        "id": first["complex_id"],
-        "component": first["component"],
-        "split": "test",
-        "path": first["reference_npz"],
-    }
-    results = []
-    for arm in protocol["required_arms"]:
-        sequences = ["A" * 8, "AG" + "A" * 6]
-        results.append(
-            {
-                "arm": arm,
-                "seed": 42,
-                "split": "test",
-                "smoke_test": False,
-                "dataset_identity": first["dataset_identity"],
-                "reference_kind": "native",
-                "model_identity": {"kind": "fixture-only"},
-                "sampling": {"samples": 2, "steps": 2, "temperature": 1.0},
-                "cases": [
-                    {
-                        "id": row["id"],
-                        "component": row["component"],
-                        "source_sha256": first["reference_sha256"],
-                        "mask_sha256": first["mask_sha256"],
-                        "sequences": sequences,
-                        **sequence_metrics("A" * 8, sequences, reference["design_mask"]),
-                    }
-                ],
-            }
-        )
-    path = tmp_path / "exported.jsonl"
-    exported = export_candidates([row], results, path)
-    assert len(exported) == 9
-    assert len(prepare_jobs(path, protocol, tmp_path / "exported_bundle")["jobs"]) == 9
-    results[0]["smoke_test"] = True
-    with pytest.raises(ValueError):
-        export_candidates([row], results, tmp_path / "bad.jsonl")
+    path, protocol, _, candidates = candidate_fixture
+    candidates[0][field] = "different"
+    path.write_text("".join(json.dumps(row) + "\n" for row in candidates))
+    with pytest.raises(ValueError, match="Unmatched|identical"):
+        prepare_jobs(path, protocol, tmp_path / "mismatched")

@@ -1,10 +1,4 @@
 {
-  "proteinmpnn": {
-    "repository": "https://github.com/dauparas/ProteinMPNN.git",
-    "revision": "8907e6671bfbfc92303b5f79c4b5e6ce47cdef57",
-    "directory": "external/ProteinMPNN",
-    "checkpoint": "vanilla_model_weights/v_48_020.pt"
-  },
   "bindcraft": {
     "repository": "https://github.com/martinpacesa/BindCraft.git",
     "revision": "7713aa0d0d351e4117a8befeb8541f3a8ebd3368",
@@ -14,5 +8,15 @@
     "repository": "https://github.com/google-deepmind/alphafold3.git",
     "revision": "28c2d290559fe07387a12f471ad49f0d36206327",
     "directory": "external/alphafold3"
+  },
+  "ligandmpnn": {
+    "repository": "https://github.com/dauparas/LigandMPNN.git",
+    "revision": "26ec57ac976ade5379920dbd43c7f97a91cf82de",
+    "directory": "external/LigandMPNN"
+  },
+  "rfd4_proteina": {
+    "repository": "https://github.com/RosettaCommons/RFD4-Proteina.git",
+    "revision": "68058693cb88762a8aaf806571e13b291ce6318a",
+    "directory": "external/RFD4-Proteina"
   }
 }

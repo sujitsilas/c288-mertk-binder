@@ -1,251 +1,145 @@
-# Design brief and comparison protocol
+# Biological design and experimental validation plan
 
-Reoriented on 2026-11-09 after Professor Abedi's feedback. The
-[revised proposal draft](../Report/revised_project_direction.md) states the protein
-concept and motivation. The working computational comparison is **ESM3+adapter
-versus ProteinMPNN, with AF3 assessing both**. The shared AF3 preparation/launcher
-and structural scorer are implemented and tested against output fixtures. Actual
-AF3 inference has not run. See [the structural evaluation guide](af3_evaluation.md).
+**Historical program-level plan.** The [November 13 functional design plan](efferocytosis_design.md) defines the current objective and staged panel: improved MERTK-dependent efferocytosis, with a monovalent parent versus defined bivalent Ig1 comparison and a conditional PS-bridge follow-up. The assay concepts below remain useful; the old parallel generator/fusion panel and mouse/tissue expansion are not automatic current requirements.
 
-## Protein design comes first
+Draft protocol, updated November 11, 2026 with the mouse-testing requirement. These are proposed experiments and decision criteria, not observed results. The [proposal](repository_archive.md#proposal-drafts) defines the scientific rationale. Lock endpoints, doses, time points, exclusions and analysis after an assay-development pilot and before testing the nominated panel.
 
-The intended building block is a small MerTK-selective extracellular binder that
-preserves natural-ligand access. A bivalent format is a subsequent hypothesis about
-receptor engagement, not an automatic consequence of obtaining a binder. The
-longer-term functional objective is greater apoptotic-cell internalization while
-preserving ligand-supported efferocytosis. The course deliverable is a defensible
-computational design and testing strategy; cellular activity requires experiments.
+## Primary objective and staged scope
 
-| Requirement | Why it matters | Computational evidence to collect | Decisive experimental evidence |
-| --- | --- | --- | --- |
-| Folded, tractable binder | A designed sequence must form a usable protein | Fold consistency, exposed hydrophobicity and aggregation flags | Expression, monodispersity and folding/stability measurements |
-| MerTK binding at the selected epitope | The chosen surface must be reachable on the receptor | Intended pose and contact retention; full-ectodomain, glycan and membrane placement | Direct binding and epitope/competition measurements; cell-surface binding |
-| Selectivity over AXL/TYRO3 | Family-related binding would obscure receptor-specific function | Matched off-target predictions and surface comparisons as screening evidence | Matched binding assays against all three receptors |
-| Natural-ligand compatibility | A binder should not defeat the clearance mechanism it is intended to support | Overlay ligand-bound structural evidence; flag uncertain or conflicting geometries | GAS6/PROS1 competition and ligand-supported function with versus without binder |
-| Productive format and valency | Strong binding and receptor activation need not improve clearance | Attachment-point, linker and ectodomain geometry assessment | Monovalent versus bivalent constructs at comparable binding-site exposure |
-| MerTK-dependent efferocytosis | This is the proposed cellular benefit | No current computational metric establishes it | Apoptotic-cell internalization, distinguished from surface attachment, in control and MerTK-deficient macrophages |
+The primary endpoint is the donor-paired difference in internalized apoptotic-neutrophil cargo per viable human monocyte-derived macrophage. Record both the percentage of macrophages containing cargo and cargo per macrophage. Increased surface adhesion, reporter brightness or macrophage survival alone does not establish increased efferocytosis.
 
-Choose and document the exact construct, patch, residue numbering, structural
-confidence, glycosylation assumptions, and ligand-access rationale **before**
-backbone generation. The 512-token sequence-design crop is not the receptor's
-physical environment: restore the candidate to a full ectodomain/membrane context
-for biological screening. No patch has been selected yet. If its accessibility or
-ligand compatibility cannot be justified, revisit the patch or protein concept.
+Stage the work to avoid an unmanageable full factorial screen:
 
-The functional comparison should include ligand alone, binder alone, ligand plus
-binder, a nonbinding control, and monovalent/bivalent versions. Test whether the
-binder adds benefit to ligand-supported clearance, not only whether it differs
-from untreated cells. Receptor phosphorylation supports the mechanism but is not
-the primary functional readout. The original proposal's warning is substantive:
-[Waterborg et al.](https://doi.org/10.3389/fimmu.2018.00742) observed interference
-with efferocytosis from an agonistic MerTK antibody in arthritis models.
+1. Nominate up to four diverse monovalent candidates from each generator, drawn from the same reviewed epitope classes. Test expression, monodispersity and MERTK binding first.
+2. Characterize binding hits for AXL/TYRO3 selectivity and compatibility with GAS6 and PROS1. Advance the best two into a defined bivalent format.
+3. In parallel, test two Annexin A5–PROS1-module fusion configurations, keeping the natural receptor-binding module intact initially. Confirm module function before considering sequence changes.
+4. Test cellular uptake and mechanism in a staged donor assay. A small assay-development pilot establishes dynamic range; a proposed six-donor confirmation study is a feasibility starting point, not a claim of statistical power.
+5. Advance successful proteins to resolution assays, followed by a tissue repair model. Tissue regeneration and animal efficacy remain downstream studies.
 
-## Core computational experiment
+## Reference and epitope dossier
 
-Hold the target construct, backbone pool, interface mask, fixed residues, and
-candidate budget constant. Only the sequence-design method changes. Use the same
-AF3 version, weights, input preparation, seeds, number of samples, and ranking rule
-for every arm. The intended comparison is conditional on a fixed backbone pool;
-it is not a comparison of unrestricted end-to-end binder generators.
+For each epitope, record the experimental coordinate checksum, human UniProt numbering, author numbering, construct boundaries, omitted residues and glycans, design-chain mapping, proposed contact residues, and all modeling assumptions. The experimentally observed 37NT A93–A484 construct is the shared starting point, not a model of the complete membrane receptor.
 
-| Arm | Question answered | Priority |
-| --- | --- | --- |
-| ProteinMPNN → AF3 | How well does the established sequence-design method perform? | Core comparator |
-| Frozen ESM3 → AF3 | What does the pretrained model provide without adaptation? | Core control |
-| ESM3+LoRA → AF3 | Does task adaptation help without the atom adapter? | Core control |
-| ESM3+LoRA+atom adapter → AF3 | Does target atomic context help and approach ProteinMPNN? | Core hypothesis |
-| Original BindCraft sequence → AF3 | Does redesign help or harm the generator's starting design? | Application control |
-| Adapter-only, backbone-only atoms, atom-only decoder | Is a gain attributable to LoRA, side chains, or the pretrained model? | Follow-up ablations |
-| Time-conditioned masking / diffusion extensions | Does a different objective add value after the core result? | Deferred |
+| Epitope class | Biological rationale | Required review before generation |
+|---|---|---|
+| Ligand-compatible extracellular patch | Permit endogenous PS–ligand–MERTK bridging while adding a controllable binding module | Natural-ligand footprint hypothesis, glycan accessibility, MERTK-specific side chains, domain movement and linker exit direction |
+| Membrane-proximal FNIIIb patch | Test whether nearby occupancy can reduce receptor shedding | Human stalk/cleavage mapping, accessibility to a soluble binder, membrane collision, ligand effects and perturbation of putative receptor contacts |
+| PROS1-derived receptor interface | Preserve natural recognition in an engineered PS bridge | Domain integrity, simultaneous membrane/receptor access, MERTK versus TYRO3 engagement and compatibility with the chosen fusion orientation |
 
-`configs/comparison_core.json` runs the four core sequence-design arms across three
-seeds: 12 evaluation jobs and six training runs. The original eight-arm suite stays
-available. See [commands and model inputs](comparisons.md). Sequence runners train
-on reconstruction and export matched candidates. The separate AF3 workflow consumes
-these candidates with a frozen input/sampling protocol.
+Do not transfer the murine cleavage residue number directly to human MERTK. Resolve human sequence correspondence and, where feasible, identify released fragment termini. A reduction in shedding must be measured; proximity to a predicted cleavage site is not sufficient evidence.
 
-ESM3 already receives backbone geometry; the adapter adds local target heavy-atom
-context, not the model's first structural information. ProteinMPNN is a backbone
-baseline, so a gain over it alone does not isolate an ESM-specific advantage.
-[Fixed-side-chain conditioning in LigandMPNN](https://github.com/dauparas/LigandMPNN#22---ligand_mpnn_use_side_chain_context)
-should be an additional comparison before claiming an advantage over atomic-context
-inverse folding. It is not integrated in this repository yet.
+## Human-to-mouse translation requirement
 
-The primary causal contrast is combined versus LoRA on matched training data and
-sampling budgets. Combined versus ProteinMPNN assesses practical competitiveness.
-If combined only matches ProteinMPNN while requiring more resources, report
-feasibility rather than a computational advantage. If it fails to improve on LoRA,
-there is no evidence to retain this adapter. A negative result still answers the
-methods question, and ProteinMPNN remains usable for the protein-design goal.
+Retain experimental human 37NT as the structural reference, and treat human and
+mouse MERTK as positive targets during epitope review and candidate selection.
+For planned testing in conventional mice, require demonstrated mouse receptor
+engagement and function before animal nomination. Human-only runtime pilots do
+not establish mouse applicability. Published anti-MerTK screens found
+species-restricted antibodies, including a human candidate without mouse
+cross-reactivity ([primary study](https://pmc.ncbi.nlm.nih.gov/articles/PMC10067786/)).
 
-## Define "close" before inspecting test results
+A November 11 alignment of reviewed canonical UniProt sequences
+[human Q12866](https://www.uniprot.org/uniprotkb/Q12866/entry) and
+[mouse Q60805](https://www.uniprot.org/uniprotkb/Q60805/entry) found:
 
-Let q be the fraction of generated candidates meeting the same predefined
-structural pass criteria, averaged within targets/families and then across
-independent families. The proposed comparison is:
+| Human sequence window | Identity to aligned mouse sequence, counting gaps |
+|---|---:|
+| Annotated ectodomain, 21–505 | 373/487 columns (76.6%) |
+| Observed 37NT segment, 93–484 | 326/393 columns (83.0%) |
+| Annotated FNIIIb domain, 386–484 | 74/99 columns (74.7%) |
 
-`delta = q(ESM3 + LoRA + adapter) - q(ProteinMPNN)`
+These are our sequence calculations, not measured binding probabilities. Method:
+global alignment of annotated ectodomains with BLOSUM62, gap opening −10 and
+extension −0.5; first optimal alignment. Source JSON, entry versions/checksums,
+alignment and residue mapping are archived in the ignored
+`outputs/species_review_20261111/` directory. The observed 37NT sequence was
+verified against human positions 93–484. Review local contact residues, indels,
+glycosylation and accessibility instead of choosing an epitope from overall
+identity. Verify the planned mouse strain/construct sequence. Any mouse model
+derived from the human structure must be labeled as a homology model; it is not
+an experimental mouse structure.
 
-A **draft** practical margin is five absolute percentage points: declare
-noninferiority only if the lower bound of the paired 95% interval exceeds -0.05.
-This is a proposed engineering tolerance, not a literature-established biological
-threshold. Select and justify it before the test set is evaluated. A nonsignificant
-difference or overlapping error bars does not establish equivalence. A pilot with
-few independent families is exploratory and may be unable to resolve this margin.
-MerTK alone is an application case, not multiple independent targets just because
-many backbones or AF3 samples were generated for it.
+Test human and mouse ectodomain binding and native cell-surface recognition
+early. Check AXL/TYRO3 selectivity in both species. Before mouse efficacy work,
+require improved apoptotic-neutrophil uptake in primary mouse macrophages with
+Mertk loss/blockade controls, compatible mouse Gas6/Pros1 signaling, and acceptable
+shedding/trafficking. Binding or phosphorylation alone is insufficient. Apply
+the same species checks to the Annexin A5–PROS1-derived fusion.
 
-Starting structural gates for validation calibration, **not validated hit rules**:
+If a useful human candidate lacks mouse activity, a separately characterized
+mouse-reactive surrogate can test the mechanism, or an appropriate human-MERTK
+knock-in model can be considered. A surrogate's efficacy does not validate the
+human candidate itself. A humanized model must express the intended receptor in
+the relevant macrophages and retain the ligand/clearance biology being tested.
 
-- Target–binder pair ipTM at least 0.8, using explicit chain identities.
-- Binder Cα RMSD at most 2 Å after fitting the binder to its designed backbone.
-- Binder Cα RMSD at most 3 Å after fitting the target domain to the reference target;
-  this tests the binder's pose, which a binder-only fit would hide.
-- No severe AF3 clash flag; inspect local interface clashes separately, since the
-  global flag is not a complete interface-quality check.
+## Candidate quality and binding
 
-Freeze atom/residue mappings, alignment domains, missing-residue handling and all
-cutoffs after validation calibration and before the final test. Preserve all raw
-confidence and geometry measurements. The interface epitope/contact retention,
-interchain PAE, binder confidence, diversity of passing sequences, and compute per
-passing candidate are secondary outcomes. These are measures of predicted
-structural consistency, not measured affinity or biological function.
+Express proteins in a system compatible with their disulfides and glycosylation requirements. Mammalian expression is a reasonable starting point for the PROS1-derived fusion. Record purity, yield, monomer/oligomer distribution, aggregation and endotoxin burden; contamination could change macrophage behavior. Use matched buffer and tag controls.
 
-Select one AF3 prediction per sequence by the same predeclared AF3 ranking rule,
-with equal seeds/samples for each method. Never choose by closeness to the desired
-backbone after seeing outcomes. Report seed robustness separately. Count sequences
-that finish prediction but fail structural gates as failures; record infrastructure
-failures separately and rerun them under the same budget instead of silently
-removing difficult cases. Report valid-output rate as well as structural pass rate.
-AF3 describes these fields as [confidence and ranking measures](https://github.com/google-deepmind/alphafold3/blob/main/docs/output.md).
+Measure concentration-dependent binding with SPR or BLI to human MERTK ectodomain, then confirm recognition of membrane MERTK on cells. Use an assay format that separates monovalent affinity from avidity and nonspecific surface binding. Test AXL and TYRO3 using matched receptor quality, density and detection sensitivity, plus receptor-negative cells and an unrelated extracellular protein control.
 
-## Evaluation stages and resource budget
+A proposed screening target is MERTK binding at or below 100 nM and at least a tenfold monovalent affinity margin over each off-target. These are engineering targets, not literature-derived guarantees or final efficacy thresholds. If off-target binding is undetectable, report the tested range and detection limit instead of assigning an infinite selectivity ratio. Functional selectivity at the active concentration takes precedence over an arbitrary affinity cutoff.
 
-1. Expand and audit family-split PDB complexes. Masked native reconstruction trains
-   the model and checks learning; recovery and diversity are secondary diagnostics.
-   Split both partners' families, reserve TAMs, and tune no hyperparameters on test.
-2. Run the four core arms. Tune each method's sampling temperature on validation
-   under the same search budget; the same numeric temperature need not give the
-   same diversity. Keep a common locked evaluation protocol for final reporting.
-3. Run a small predeclared AF3 integration pilot, then a family-held-out structural
-   benchmark. Cache the same target MSA for all candidates and use the same policy
-   for binder MSAs. Use template-free prediction for the primary comparison and
-   do not supply the designed complex as a template. Freeze software/database
-   versions and document pretraining-overlap limitations. AF3 supports
-   [explicit MSA and template settings](https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md).
-4. Apply the locked protocol to shared MerTK backbone candidates. Rescore the
-   original BindCraft sequence with AF3 alongside all redesigns; do not compare
-   BindCraft's internal AF2 scores directly with AF3 scores. Its accepted backbone
-   pool is already selected by BindCraft, so results are conditional on that pool.
-5. Assess the biological criteria in the table, then rank candidates for proposed
-   experimental tests. An AF3 pass never automatically satisfies those criteria.
+## Natural-ligand competition and apoptotic-cell recognition
 
-Choose the structural cohort before seeing test confidence scores. Use all planned
-candidates or a deterministic equal-sized sample per method/backbone; do not select
-each method's favorable cases after prediction. Keep the original controls.
-The AF3 budget is:
+Test each candidate in ligand-free, GAS6-supported and PROS1-supported settings, with ligand-alone controls. Use binding-competent, appropriately processed natural ligands and document serum composition; uncontrolled ligand supply can hide competition or create apparent ligand-independent activity. Include sequential-binding measurements in both addition orders and a cell-based functional confirmation.
 
-`targets × backbones/target × arms × design seeds × sequences/seed × AF3 seeds × samples/AF3 seed`
+For Concept A, ask whether candidate binding preserves ligand occupancy and ligand-supported uptake. A loss of ligand binding is a mechanistic concern even if receptor phosphorylation increases. For Concept B, competition at the natural receptor-binding site may occur; measure whether the fusion provides effective PS-dependent bridging and improves net uptake despite that competition.
 
-For example, a plumbing pilot of 3 targets × 2 backbones × 4 arms × 1 design seed
-× 4 sequences × 1 AF3 seed × 5 samples requires 480 predicted structures, plus
-original-sequence controls. These are not 480 independent observations. This is
-an illustrative budget, not a submitted job or a power calculation. Set a feasible
-budget before a full run. Measure sequence-generation and AF3 costs separately,
-and report total cost including training; LoRA reduces trainable parameters but
-does not remove ESM3 backbone inference cost.
+Assess apoptotic-neutrophil quality with an independent aliquot: apoptosis, membrane integrity, PS exposure and the fraction already undergoing secondary necrosis. Avoid pre-coating cells used for uptake with Annexin V detection reagent, because it can compete for the same surface being tested. Include viable and secondary-necrotic target controls. Confirm PS binding on defined PS-containing versus control membranes; calcium-dependence belongs in a separate binding assay, since chelation in a cellular uptake experiment has broad effects.
 
-Before attributing gains to useful atomic information, assess sensitivity to
-plausible target-side-chain conformations: native bound side chains can provide
-more favorable context than an uncertain application target. The backbone-only
-control helps isolate information content but does not establish robustness.
+For the fusion, compare intact fusion, Annexin A5 alone, PROS1 module alone, unfused modules, full-length PROS1, a validated PS-binding-defective fusion and a validated receptor-binding-defective fusion. Verify that defective variants remain folded. Demonstrate simultaneous engagement rather than two unrelated positive binding assays. Quantify loss of natural-ligand recruitment when PS is heavily occupied.
 
-If sample efficiency is pursued, train LoRA and combined on the same nested
-family-level subsets at matched training budgets and compare both learning curves.
-That follow-up can justify adaptation with limited data; parity at one data size
-alone cannot establish it.
+## Productive receptor organization and signaling
 
-## Geometry and diffusion
+Compare monovalent and bivalent forms of the same binder with matched linker/tag controls. Include equal binding-site concentration comparisons and report avidity separately. Measure receptor proximity or clustering using a suitable imaging/proximity assay, together with MERTK phosphorylation and downstream signaling time courses.
 
-[ESM3](https://github.com/Biohub/esm) already has backbone geometric reasoning and
-discrete structure tokens. The new adapter supplies the additional target atomic
-context proposed in the PDF. Rigid-motion invariant local coordinates preserve
-orientation information that pure distances would lose. Missing or degenerate
-frames and empty neighborhoods return zero conditioning. Atom inputs never
-include binder side chains, including the unmasked ones.
+Do not use ligand-free soluble ectodomain aggregation as proof of productive cell-surface clustering. Rule out nonspecific protein aggregation, Fc receptor effects and reporter overexpression artifacts. Test signaling in the presence and absence of apoptotic cells to determine whether activation depends on the intended contact. Use clearance and second-challenge function to decide whether an observed cluster is useful.
 
-[AlphaFold 3](https://www.nature.com/articles/s41586-024-07487-w) motivates
-conditioning at both atom and residue scales and separating structural context
-from a denoising task. The adapter here uses local atom pooling, not a reproduction
-of AF3's Pairformer or all-atom diffusion architecture. AF3 weights are unnecessary
-for training this adapter and were not downloaded.
+## Shedding, internalization, recycling and degradation
 
-[RFD4-Proteina](https://rfd4-proteina.org/latest/architecture/index.html) provides a
-broader sequence/structure co-design reference. Its atom/latent representations
-and coordinate/latent generation are substantially larger in scope than this
-fixed-backbone project. The implemented extension changes the mask rate over time
-and uses an absorbing-mask sequence sampler. It has no learned atomic coordinate
-denoiser, no RFD4 latent autoencoder, and no flow-matching objective.
+Compare resting and inflammatory conditions that produce measurable MERTK shedding while maintaining macrophage viability. Sample matched time courses for:
 
-A later extension could predict continuous sequence latents conditioned on the
-same geometry, or denoise binder coordinates while retaining target conditioning.
-Either would require a new objective, validity checks, and independent evaluation.
-Do not describe those extensions as already implemented.
+- Surface MERTK with a noncompeting detection reagent.
+- Soluble MERTK in supernatant with spike-recovery controls.
+- Total MERTK and cell-associated cleavage products by an orthogonal assay.
+- Receptor internalization, recycling after washout, and degradation/lysosomal routing.
+- Cell number, viability and receptor transcript abundance when needed to distinguish expression changes.
 
-## Data quality and leakage
+Use an ADAM17 perturbation as a mechanistic control and a cleavage-resistant receptor comparator only after the construct and species mapping are justified. Broad ADAM17 effects on other substrates make an inhibitor response insufficient on its own. Detection-epitope masking, sequestration of soluble MERTK, altered transcription or receptor internalization can each mimic reduced shedding.
 
-[RCSB Search](https://search.rcsb.org/) is used for discovery;
-[assembly mmCIF downloads](https://www.rcsb.org/docs/programmatic-access/file-download-services)
-provide coordinates. Biological assemblies are used instead of treating arbitrary
-crystal contacts as interacting pairs. Assembly annotation and proximity alone do
-not establish physiological binding.
+Expose cells to a second apoptotic-neutrophil challenge after initial uptake. Productive receptor internalization may be normal; persistent surface depletion and loss of repeated clearance are the failure modes. Test soluble MERTK as a potential candidate sink. Claim direct steric protection only if the binding/cleavage evidence supports it; otherwise describe the measured effect as preservation of surface receptor with mechanism unresolved.
 
-The initial pipeline uses resolved standard protein heavy atoms, highest-selected
-alternate locations as handled by Bio.PDB, and full polymer sequences. It excludes
-non-protein context from the learning features and skips design
-positions missing N/CA/C/O (O is required by standard ProteinMPNN).
-Resolution filtering applies to search results; explicit-ID downloads
-bypass it. Glycans, ligands, membrane context, covalent chemistry, protonation, and
-side-chain uncertainty are not modeled in this first implementation. Protein-only
-polymer filtering does not mean the original complex lacks glycans or small molecules.
+## Efferocytosis assay and causal controls
 
-The split procedure joins both partners' sequence clusters, and every assembly
-of the same PDB entry, before assignment. Human TAM seeds come from UniProt
-[MERTK Q12866](https://www.uniprot.org/uniprotkb/Q12866/entry),
-[AXL P30530](https://www.uniprot.org/uniprotkb/P30530/entry), and
-[TYRO3 Q06418](https://www.uniprot.org/uniprotkb/Q06418/entry), including annotated
-domains and extracellular regions to help match fragments.
+Use primary human macrophages from independent donors and standardized apoptotic-neutrophil preparations. Pair treatments within donor and balance target-cell batches across conditions. Include vehicle, nonbinding protein, each natural ligand, candidate alone and candidate plus each ligand. Use blinded imaging or flow analysis with extracellular fluorescence quenching/stripping and orthogonal image confirmation to separate engulfed cells from attached cells. Normalize to viable macrophages and report target-cell availability.
 
-30% identity with 80% bidirectional coverage is a **sequence-based approximation**
-to a protein family. Remote homologs, different domain architectures, and partial
-constructs may escape it. Before a scientific benchmark, audit cross-fold hits
-with sensitive sequence/domain and structure searches, explicitly review TAM
-ortholog/domain exclusions, and record a release-date cutoff. The seed-domain
-approach can also conservatively exclude unrelated proteins with similar domains.
-ESM3's pretraining overlap with public PDB structures is not eliminated by this
-fine-tuning split; report it as a limitation of the frozen model baseline.
+Establish MERTK dependence with receptor loss or blockade and an orthogonal perturbation. A rescue experiment with functional MERTK is particularly useful; a kinase-impaired comparator can test signaling dependence. A small-molecule inhibitor alone is insufficient because off-target kinase activity could affect uptake. Assess AXL/TYRO3 activation at the functional dose, and distinguish residual endogenous uptake from the candidate-specific benefit.
 
-## Remaining benchmark and MerTK application work
+Measure repeated uptake, digestion/processing where feasible, and residual apoptotic-cell burden. A candidate that only increases adhesion, damages viable targets, or suppresses uptake with endogenous ligand present does not meet the goal. A receptor-protective candidate may be beneficial without being independently agonistic; label its mechanism accordingly.
 
-- Expand and curate the pilot dataset; ensure enough independent validation and
-  test families. Audit assemblies, missing residues, duplicate interfaces, sequence
-  similarity, and domain-level leakage.
-- Run the four-arm core sequence comparison first. Validate the implemented AF3
-  preparation, execution and scorer on actual predictions before measuring the
-  revised endpoint. Calibrate and freeze thresholds using validation data, then
-  run the matched structural benchmark. Follow up with broader ablations only as
-  motivated by the core result.
-- Measure speed, peak CUDA memory, and numerical behavior on the lab GPUs before
-  long runs. The CUDA/bf16 code path has not been tested on this laptop.
-- Use the BindCraft setup/import/application runner with a selected MerTK
-  extracellular construct and patch. Its source and launcher are prepared;
-  generation has not been run. A full receptor sequence may exceed this pipeline's 512-token
-  budget; choose and document an extracellular domain construct rather than silently
-  cropping the interface. Native PDB proteins are reconstruction data, not a supply
-  of de novo MerTK minibinder candidates.
-- Rank candidates using separate complex prediction, AXL/TYRO3 comparisons,
-  ligand-access and glycan/membrane compatibility checks. Current sequence sampling
-  alone provides none of these guarantees.
-- Keep bivalency, signaling, ligand competition, and macrophage internalization as
-  future experimental questions, following the proposal's controls. Better native
-  sequence recovery is not evidence of improved efferocytosis.
+## Resolution and tissue extension
+
+In a defined inflammatory macrophage–neutrophil model, follow extracellular apoptotic cells, secondary necrosis and inflammatory mediator trajectories after stimulus removal. Include candidate effects on neutrophil viability/apoptosis so accelerated disappearance is not mistaken for improved clearance. If pro-resolving lipid mediators are measured, use validated analytical methods and appropriate standards rather than an isolated surrogate marker.
+
+Advance to a macrophage-containing human skin wound co-culture or explant. Compare vehicle, natural ligand, active candidate, nonbinding/module controls and MERTK-disrupted macrophages. Include tissue plus candidate without macrophages, and control carryover in conditioned-medium experiments. Readouts should include re-epithelialization, barrier function, tissue viability, architecture and matrix/scar formation. Separate effects on cell proliferation, contraction and migration from restoration of tissue.
+
+A future sterile-inflammation model should measure neutrophil numbers over time, distinguishing a lower recruitment peak from faster clearance after the peak. A resolution interval can be estimated from peak to half-peak only with adequate temporal sampling. A separate wound model evaluates tissue repair; neither study automatically demonstrates regeneration. Verify species cross-reactivity before animal work and use the applicable human-sample/animal protocols.
+
+## Analysis and advancement rules
+
+Use donors as the biological replication unit; technical wells are nested measurements. Analyze paired treatment effects with donor blocking or a mixed-effects model, report effect sizes and uncertainty, and retain all prespecified exclusions and failures. Include neutrophil batch as a blocking factor where the design permits. Lock the primary contrast and endpoint time/window before the confirmation cohort; correct multiple candidate comparisons and designate mechanism readouts as secondary.
+
+Choose confirmation sample size from pilot donor variability and a prespecified biologically meaningful uptake improvement. A proposed 20% relative improvement over the matched ligand condition can be used for planning, but it is a hypothesis-dependent threshold to finalize before the confirmatory study. If the baseline is near zero, use an absolute difference. An inconclusive interval is not evidence of equivalence.
+
+Advance candidates only when the uptake benefit is reproducible, linked to MERTK, and compatible with viable-cell discrimination and sustained receptor function. Keep binding, agonism, shedding protection, efferocytosis, resolution and tissue effects as separate labels in the candidate dossier. Report negative results as informative tests of epitope, valency or bridge design.
+
+## Course milestones
+
+| Milestone | Deliverable | Decision |
+|---|---|---|
+| Reference and epitope review | Glycan-aware 37NT dossier, human/mouse mapping, negative-target panel | Proceed only with an accessible, biologically justified patch |
+| Computational pilot | Common-budget generation logs and structural review | Nominate diverse proteins; do not lower filters to fill quotas |
+| Biochemical pilot | Expression, monodispersity, MERTK/off-target binding and competition | Advance binding hits with interpretable mechanism |
+| Cellular validation | Donor-paired uptake, trafficking and shedding evidence | Advance reproducible functional hits |
+| Downstream extension | Temporal resolution and tissue-function measurements | Make only the claims directly supported |

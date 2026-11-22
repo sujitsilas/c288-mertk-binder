@@ -9,8 +9,8 @@ import time
 from pathlib import Path
 
 from mertk.af3 import load_jobs
+from mertk.provenance import file_hash
 from mertk.structural import prediction_files, validate_processed_input
-from mertk.training import file_hash
 
 
 def main():
