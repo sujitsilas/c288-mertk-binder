@@ -1,5 +1,7 @@
 # Figure sources
 
+`burn_sham_mertk_axis.png` shows day-adjusted mouse burn versus sham log₂ fold changes estimated from reconstructed sample-level counts by TMM and limma-voom. Its 18 aggregate estimates are in `burn_sham_mertk_axis.tsv`. Run `scripts/burn_sham/mertk_axis_figure.py` to regenerate the plot. [Methods and interpretation](../../docs/burn_sham_mask_20261118.md#mertk-axis-expression-using-reconstructed-counts)
+
 `burn_mask_evidence.png` summarizes pooled transcript counts from the mouse burn and sham dataset. Its source data and reproduction steps are in the [protease analysis notes](../../docs/burn_sham_mask_20261118.md). Run `scripts/burn_sham/report_figure.py` with the pooled count table in place to regenerate it.
 
 ## First-principles bridge review, November 12

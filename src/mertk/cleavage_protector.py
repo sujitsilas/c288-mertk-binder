@@ -8,11 +8,11 @@ import numpy as np
 from Bio.PDB import MMCIFIO, PDBIO, MMCIFParser, PDBParser, Select
 from Bio.SeqUtils import seq1
 
-from mertk.glycan_guard import MODE, SUGARS, frames
-from mertk.prediction_review import nearest_points
+from mertk.glycan_guard import MODE, SUGARS, glycan_local_positions, glycan_positions
+from mertk.prediction_review import native_numbering, nearest_points
 from mertk.protector_screen import bond_distances
 from mertk.provenance import file_hash
-from mertk.structural import rigid_fit, rmsd
+from mertk.structural import coordinate_spread, rigid_fit, rmsd
 
 TARGET_RANGE = (386, 526)
 STALK_RANGE = (485, 498)
@@ -84,7 +84,7 @@ def glycan_constraints(target_path, native_cif):
             continue
         triad = np.array([native["A"][n][a].coord for a in ["N", "CA", "C"]])
         xyz = np.array([a.coord for r in sugars for a in r if a.element not in {"H", "D"}])
-        local.extend(((xyz - triad[1]) @ frames(triad).T).tolist())
+        local.extend(glycan_local_positions(xyz, triad).tolist())
         atom_sites.extend([len(sites)] * len(xyz))
         sites.append(n)
         attachments.append(
@@ -135,11 +135,7 @@ def transported_glycans(chain, spec):
     triads = np.array(
         [[residues[i][a].coord for a in ["N", "CA", "C"]] for i in spec["anchor_indices"]]
     )
-    ids = np.asarray(spec["glycan_atom_sites"])
-    return (
-        np.einsum("ai,aij->aj", np.asarray(spec["glycan_local_xyz"]), frames(triads)[ids])
-        + triads[ids, 1]
-    )
+    return glycan_positions(triads, spec["glycan_local_xyz"], spec["glycan_atom_sites"])
 
 
 def membrane_clearance(xyz, chain):
@@ -215,23 +211,43 @@ def prepare_targets(source, native_cif, canonical, out):
     return report
 
 
+def _map_target(target, reference):
+    reference_numbers = [r.id for r in reference if r.id[0] == " "]
+    start, end = TARGET_RANGE
+    if reference_numbers != [(" ", n, " ") for n in range(start, end + 1)]:
+        raise ValueError("Reference must be the complete native A386–A526 construct")
+    canonical_crop = sequence(reference)
+    if sequence(target) != canonical_crop:
+        raise ValueError("Prediction differs from the complete protector target sequence")
+    return {
+        reference_numbers[index - 1][1]: target[residue_id]
+        for residue_id, index in native_numbering(target, canonical_crop).items()
+    }
+
+
 def evaluate_pose(path, campaign, suite):
     model = PDBParser(QUIET=True).get_structure("prediction", path)[0]
     reference = PDBParser(QUIET=True).get_structure("reference", campaign / "inputs/target.pdb")[0][
         "A"
     ]
-    target = next((c for c in model if sequence(c) == sequence(reference)), None)
-    if target is None or len(list(model)) != 2:
-        raise ValueError("Expected exact target sequence and one binder")
-    binder = next(c for c in model if c.id != target.id)
-    mapped = {n: r for n, r in zip(range(386, 527), target)}
+    protein_chains = [c for c in model if sequence(c)]
+    targets = [c for c in protein_chains if sequence(c) == sequence(reference)]
+    if len(targets) != 1 or len(protein_chains) != 2:
+        raise ValueError("Expected one exact target match and one binder protein chain")
+    target = targets[0]
+    binder = next(c for c in protein_chains if c.id != target.id)
+    mapped = _map_target(target, reference)
     xyz = np.array([a.coord for a in heavy(binder)])
     contacts = [
         n
         for n, r in mapped.items()
-        if nearest_points(xyz, np.array([a.coord for a in r if a.element != "H"]))[0].min() <= 4.5
+        if nearest_points(xyz, np.array([a.coord for a in r if a.element not in {"H", "D"}]))[
+            0
+        ].min()
+        <= 4.5
     ]
-    stalk = [n for n in contacts if 485 <= n <= 498]
+    stalk_start, stalk_end = STALK_RANGE
+    stalk = [n for n in contacts if stalk_start <= n <= stalk_end]
     distances = bond_distances(xyz, mapped)
     reasons = []
     if max(distances) > 5 or len(stalk) < 3 or len(stalk) < 0.5 * max(1, len(contacts)):
@@ -245,7 +261,7 @@ def evaluate_pose(path, campaign, suite):
         context = PDBParser(QUIET=True).get_structure(
             "context", suite / f"references/{name}_full_context.pdb"
         )[0]["A"]
-        ns = range(485, 499)
+        ns = range(stalk_start, stalk_end + 1)
         x = np.array([mapped[n]["CA"].coord for n in ns])
         y = np.array([context[n]["CA"].coord for n in ns])
         rotation, translation = rigid_fit(x, y)
@@ -265,6 +281,8 @@ def evaluate_pose(path, campaign, suite):
         row = dict(
             conformer=name,
             stalk_ca_rmsd_A=rmsd(x @ rotation + translation, y),
+            stalk_fit_target_spread_A=coordinate_spread(x).tolist(),
+            stalk_fit_reference_spread_A=coordinate_spread(y).tolist(),
             model_protein_min_A=float(pd.min()),
             restored_protein_min_A=float(ed.min()),
             glycan_min_A=float(gd.min()),
@@ -291,6 +309,8 @@ def evaluate_pose(path, campaign, suite):
         cleavage_atom_min_distances_A=distances,
         conformers=checks,
         rejection_reasons=reasons,
+        geometry_interpretation="Sensitivity to three chosen stalk models. "
+        "Tight clearance gates depend on an uncertain local alignment.",
         preliminary_model_pass=not reasons,
         qualified=False,
         cleavage_protection_predicted=False,

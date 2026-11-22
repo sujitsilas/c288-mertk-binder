@@ -1,6 +1,26 @@
 # MERTK prediction viewer and independent comparators
 
-The [final project review](../outputs/review/mertk_protector_predictions.html) shows the generation and repair results for both aims alongside the GAS6 and mCherry Boltz-2 comparisons. The earlier pilot galleries used TULP2 and mCherry as AF3 comparators and follow the side-by-side structure-review approach in Gokul's presentation.
+The final project review shows the generation and repair results for both aims alongside the GAS6 and mCherry Boltz-2 comparisons. The earlier pilot galleries used TULP2 and mCherry as AF3 comparators and follow the side-by-side structure-review approach in Gokul's presentation. [Review on GitHub Pages](https://sujitsilas.github.io/c288-mertk-binder/)
+
+## Rebuild the published review
+
+Use a clean source checkout. The evidence bundle contains only the structures and run summaries used for the review. Its JSON excludes internal scratch paths and unpublished stalk-screen sequences. The three redocked PDBs retain the atom records used to verify the repair measurements. The original runs remain in the local workspace. [Evidence ZIP](../assets/review/review-inputs.zip) · [SHA-256 manifest](../assets/review/SHA256SUMS)
+
+```bash
+uv sync --frozen --extra dev
+unzip -n assets/review/review-inputs.zip
+first=outputs/hpc/round_20261120_mertk_pose_followup_01/references/37NT.cif
+second=outputs/hpc/round_20261121_ig1_boltz_repack_01/validation/references/37NT.cif
+mkdir -p "$(dirname "$second")"
+curl -fsSL https://files.rcsb.org/download/37NT.cif -o "$first"
+cp "$first" "$second"
+shasum -a 256 -c assets/review/SHA256SUMS
+.venv/bin/python scripts/build_final_review.py --public --output output/site/index.html
+```
+
+Both 37NT copies are pinned to the public RCSB download in `configs/target_reference.json`. Checksum failures indicate that a local source differs from the release. The release rebuild renders the archived evidence. A full postprocessing rerun uses the original local prediction arrays and run directories.
+
+The Boltz assessment records each target template and compares predicted contact residues with the archived source pose for designed cases. Assessment metadata records the scorer and pose-inspection module hashes, plus the source revision when Git tracks the executing file. New Ig1 repack validation manifests also record their preparation revision and workflow hash.
 
 ## Earlier pilot gallery methods
 

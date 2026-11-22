@@ -5,9 +5,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from Bio.PDB import PDBParser
+from Bio.PDB import Chain, PDBParser, Residue
 
-from mertk.cleavage_protector import rotate_psi
+from mertk.cleavage_protector import _map_target, rotate_psi
 from mertk.glycan_guard import losses
 from mertk.protector_screen import disable_score_cutoffs
 from mertk.provenance import file_hash
@@ -35,6 +35,28 @@ def test_protector_scope_does_not_reopen_retired_patch():
             require_active_target(name, hotspots, record, policy)
     with pytest.raises(ValueError):
         require_active_target("Stalk_P490S491", [488, 490, 491], {}, policy)
+
+
+def test_stalk_mapping_ignores_interleaved_hetero_residues_and_rejects_missing_residues():
+    reference = Chain.Chain("A")
+    target = Chain.Chain("X")
+    for index in range(1, 142):
+        name = "PRO" if index == 105 else "ALA"
+        reference.add(Residue.Residue((" ", 385 + index, " "), name, ""))
+        target.add(Residue.Residue((" ", index, " "), name, ""))
+        if index == 50:
+            target.add(Residue.Residue(("W", index, " "), "HOH", ""))
+    mapped = _map_target(target, reference)
+    assert list(mapped) == list(range(386, 527))
+    assert mapped[490].resname == "PRO"
+    assert mapped[491] is target[106]
+
+    target.detach_child((" ", 50, " "))
+    with pytest.raises(ValueError, match="complete protector target sequence"):
+        _map_target(target, reference)
+    reference.detach_child((" ", 435, " "))
+    with pytest.raises(ValueError, match="complete native"):
+        _map_target(target, reference)
 
 
 def test_membrane_loss_is_masked_and_rigid_body_invariant():

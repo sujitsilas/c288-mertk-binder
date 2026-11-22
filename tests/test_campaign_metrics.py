@@ -41,6 +41,35 @@ def test_ranked_copies_and_variants_do_not_multiply_independent_hits(tmp_path):
     assert row["acceptance_on_completed_attempts"]["rate"] == 1
 
 
+def test_missing_or_empty_log_is_not_reported_as_zero_attempts(tmp_path):
+    (tmp_path / "manifest.json").write_text(json.dumps({"campaign_id": "test"}))
+    with pytest.raises(FileNotFoundError, match="No generation log"):
+        summarize(tmp_path)
+    log = tmp_path / "generation.log"
+    log.touch()
+    with pytest.raises(ValueError, match="Generation log is empty"):
+        summarize(tmp_path, log_path=log)
+
+
+def test_native_log_takes_precedence_and_multiple_scheduler_logs_require_selection(tmp_path):
+    (tmp_path / "manifest.json").write_text(json.dumps({"campaign_id": "test"}))
+    scheduler = tmp_path / "logs"
+    scheduler.mkdir()
+    first = scheduler / "test_bindcraft_generate_1.log"
+    first.write_text("Starting trajectory: binder_l80_s1\n")
+    assert summarize(tmp_path)["attempts_started"] == 1
+    (scheduler / "test_bindcraft_generate_2.log").write_text("Starting trajectory: binder_l80_s2\n")
+    with pytest.raises(ValueError, match="Multiple generation logs"):
+        summarize(tmp_path)
+    assert summarize(tmp_path, log_path=first)["trajectory_names"] == ["binder_l80_s1"]
+    native = tmp_path / "bindcraft/run.log"
+    native.parent.mkdir()
+    native.write_text("Starting trajectory: binder_l80_s3\n")
+    row = summarize(tmp_path)
+    assert row["trajectory_names"] == ["binder_l80_s3"]
+    assert set(row["source_sha256"]) == {str(native)}
+
+
 def test_accounting_counts_elapsed_terminal_and_full_live_reservations():
     rows = parse_accounting(
         "1|course_old|COMPLETED|0:0|3600|240|gres/gpu=1|gres/gpu=1\n"

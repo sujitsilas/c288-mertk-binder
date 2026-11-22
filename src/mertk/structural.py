@@ -27,6 +27,12 @@ def rigid_fit(mobile, reference):
     return rotation, reference.mean(0) - mobile.mean(0) @ rotation
 
 
+def coordinate_spread(points):
+    """Singular values of centered coordinates, in input distance units."""
+    points = np.asarray(points, dtype=float)
+    return np.linalg.svd(points - points.mean(axis=0), compute_uv=False)
+
+
 def rmsd(a, b):
     return float(np.sqrt(np.mean(np.sum((a - b) ** 2, axis=-1))))
 

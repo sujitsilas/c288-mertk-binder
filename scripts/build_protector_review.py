@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from Bio.PDB import MMCIFIO, MMCIFParser, PDBParser
 
-from mertk.glycan_guard import SUGARS, frames
+from mertk.glycan_guard import SUGARS, glycan_local_positions, glycan_positions
 from mertk.prediction_review import build_review
 
 
@@ -43,10 +43,11 @@ def main():
             if residue.resname not in SUGARS:
                 copied.detach_child(residue.id)
         copied.id = f"G{len(list(reference))}"
-        for atom in copied.get_atoms():
-            atom.coord = (atom.coord - original[1]) @ frames(original).T @ frames(target) + target[
-                1
-            ]
+        atoms = list(copied.get_atoms())
+        local = glycan_local_positions(np.array([atom.coord for atom in atoms]), original)
+        positions = glycan_positions(target[None], local, [0] * len(atoms))
+        for atom, position in zip(atoms, positions, strict=True):
+            atom.coord = position
         reference.add(copied)
     out = suite / "review"
     out.mkdir(exist_ok=True)

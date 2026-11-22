@@ -4,6 +4,7 @@
 import argparse
 import base64
 import csv
+import gzip
 import html
 import json
 import re
@@ -28,7 +29,8 @@ STALK_OVERLAY_MAX_RMSD = 3.0
 ASSETS = ROOT / "assets"
 TEMPLATE = ASSETS / "mertk_final_review.html"
 VENDOR = ASSETS / "vendor/3dmol-2.5.5"
-PROTEASE_FIGURE = ASSETS / "figures/burn_mask_evidence.png"
+EXPRESSION_FIGURE = ASSETS / "figures/burn_sham_mertk_axis.png"
+STALK_SENSITIVITY = ASSETS / "figures/stalk_alignment_sensitivity.json"
 NAMES = {
     "01_ig1_i32g_w83f": "Ig1 I32G / W83F",
     "02_ig1_q124_l129": "Ig1 Q124 · 129 aa",
@@ -75,7 +77,7 @@ def chain_confidence(path, pose):
 def stalk_confidence(canonical, sources):
     chain = PDBParser(QUIET=True).get_structure("AFDB", STALK_CONFIDENCE)[0]["A"]
     confidence = []
-    for number in range(485, 506):
+    for number in range(440, 531):
         residue = chain[number]
         letter = seq1(residue.resname)
         plddt = residue["CA"].bfactor
@@ -136,7 +138,7 @@ def collect_repair(cases, sources, context, canonical, receptor_sequence):
         pose = inspect_pose(coords, context["Ig1"], canonical, receptor_sequence, spec["sequence"])
         if pose["source_sha256"] != row["sha256"]:
             raise ValueError(f"Refold coordinates differ from the scored result for {key}")
-        all_contacts = inspect_pose(coords, context["Stalk"], canonical)["contacts"]
+        all_contacts = pose["target_contacts"]
         fit = row["overlays"]["crystal"]
         name = summary[variant]["name"]
         model = {
@@ -223,6 +225,13 @@ def collect():
         str(path.relative_to(ROOT)): file_hash(path)
         for path in (manifest_path, assessment_path, canonical_path, *reference_paths.values())
     }
+    reference_config = ROOT / "configs/target_reference.json"
+    if (
+        sources[str(reference_paths["Ig1"].relative_to(ROOT))]
+        != read_json(reference_config)["source_sha256"]
+    ):
+        raise ValueError("Review crystal coordinates do not match the pinned 37NT source")
+    sources[str(reference_config.relative_to(ROOT))] = file_hash(reference_config)
     scored = {row["id"]: row for row in assessment["cases"]}
     if set(scored) != set(NAMES) or assessment["protocol"] != manifest["protocol"]:
         raise ValueError("Unexpected final cohort or protocol")
@@ -252,6 +261,7 @@ def collect():
                 "template": spec["target_template"],
                 "engine": "Boltz-2",
                 "iptm": row["iptm"],
+                "pairIptm": [row["pair_chains_iptm"][a][b] for a, b in (("0", "1"), ("1", "0"))],
                 "pae": row["mean_bidirectional_contact_PAE_A"],
                 "igContacts": len(row["Ig1_contact_residues_4p5A"]),
                 "stalkContacts": stalk_contacts,
@@ -314,6 +324,7 @@ def collect():
     job_path = FOLLOWUP / "jobs.json"
     for path in (statistics_path, geometry_path, refold_path, stalk_path, job_path, *repair_paths):
         sources[str(path.relative_to(ROOT))] = file_hash(path)
+    sources[str(STALK_SENSITIVITY.relative_to(ROOT))] = file_hash(STALK_SENSITIVITY)
     staged = read_json(geometry_path)
     refolds = read_json(refold_path)
     stalk = read_json(stalk_path)
@@ -336,6 +347,7 @@ def collect():
         "repair": collect_repair(cases, sources, context, canonical, manifest["receptor_sequence"]),
         "references": {key: path.read_text() for key, path in reference_paths.items()},
         "stalkConfidence": stalk_confidence(canonical, sources),
+        "stalkSensitivity": read_json(STALK_SENSITIVITY),
         "stalkOverlayMaxRmsd": STALK_OVERLAY_MAX_RMSD,
         "workflow": workflow,
         "protocol": manifest["protocol"],
@@ -357,20 +369,26 @@ def main():
     data, sources = collect()
     library = VENDOR / "3Dmol-min.js"
     digest = file_hash(library)
-    if digest != read_json(VENDOR / "provenance.json")["files"][library.name]["sha256"]:
-        raise ValueError("Pinned 3Dmol.js hash changed")
-    figure = PROTEASE_FIGURE.read_bytes()
-    sources[str(PROTEASE_FIGURE.relative_to(ROOT))] = file_hash(PROTEASE_FIGURE)
+    license_path = VENDOR / "LICENSE"
+    vendor_files = read_json(VENDOR / "provenance.json")["files"]
+    if (
+        digest != vendor_files[library.name]["sha256"]
+        or file_hash(license_path) != vendor_files[license_path.name]["sha256"]
+    ):
+        raise ValueError("Pinned 3Dmol.js library or license hash changed")
+    figure = EXPRESSION_FIGURE.read_bytes()
+    sources[str(EXPRESSION_FIGURE.relative_to(ROOT))] = file_hash(EXPRESSION_FIGURE)
     template = TEMPLATE.read_text()
     if args.public:
         template = re.sub(r"<!-- local-only -->.*?<!-- /local-only -->", "", template, flags=re.S)
         for case in data["cases"]:
             del case["source"]
+    compressed_data = gzip.compress(safe_json(data).encode("utf-8"), mtime=0)
     page = (
-        template.replace("__DATA__", safe_json(data))
+        template.replace("__DATA__", base64.b64encode(compressed_data).decode("ascii"))
         .replace("__LIBRARY__", library.read_text())
-        .replace("__LICENSE__", html.escape((VENDOR / "LICENSE").read_text()))
-        .replace("__PROTEASE_FIGURE__", base64.b64encode(figure).decode("ascii"))
+        .replace("__LICENSE__", html.escape(license_path.read_text()))
+        .replace("__EXPRESSION_FIGURE__", base64.b64encode(figure).decode("ascii"))
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     with NamedTemporaryFile(mode="w", encoding="utf-8", dir=output.parent, delete=False) as stream:
@@ -386,6 +404,7 @@ def main():
         "generation": data["generation"],
         "repair": data["repair"],
         "stalkConfidence": data["stalkConfidence"],
+        "stalkSensitivity": data["stalkSensitivity"],
         "stalkOverlayMaxRmsd": data["stalkOverlayMaxRmsd"],
         "jobs": data["jobs"],
         "cases": [

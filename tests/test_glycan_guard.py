@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
+from Bio.PDB import MMCIFParser, PDBParser
 
-from mertk.glycan_guard import frames, losses, prepare_constraints
+from mertk.glycan_guard import SUGARS, frames, glycan_positions, losses, prepare_constraints
 
 
 def example():
@@ -47,8 +50,6 @@ def test_nonexistent_atoms_do_not_clash():
 
 
 def test_native_attachments():
-    from pathlib import Path
-
     crop = Path("outputs/design/ig_only_20261113/ig_pair.pdb")
     cif = Path("data/references/37NT/37NT.cif")
     if not crop.exists() or not cif.exists():
@@ -57,3 +58,25 @@ def test_native_attachments():
     assert [a["native_asn"] for a in spec["attachments"]] == [114, 170, 207, 215, 234]
     assert spec["target_length"] == 193
     assert all(a["covalent_distance_A"] < 1.6 for a in spec["attachments"])
+
+    target = PDBParser(QUIET=True).get_structure("crop", crop)[0]["A"]
+    native = MMCIFParser(QUIET=True).get_structure("native", cif)[0]
+    anchors = np.array(
+        [
+            [target[spec["native_numbers"][i]][a].coord for a in ("N", "CA", "C")]
+            for i in spec["anchor_indices"]
+        ]
+    )
+    reconstructed = glycan_positions(anchors, spec["glycan_local_xyz"], spec["glycan_atom_sites"])
+    observed = np.array(
+        [
+            atom.coord
+            for attachment in spec["attachments"]
+            for residue in native[attachment["glycan_chain"]]
+            if residue.resname in SUGARS
+            for atom in residue
+            if atom.element != "H"
+        ]
+    )
+    assert reconstructed.shape == observed.shape == (239, 3)
+    np.testing.assert_allclose(reconstructed, observed, atol=1e-5, rtol=0)

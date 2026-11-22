@@ -59,7 +59,7 @@ Initial Ig1 trajectories had interface pTM 0.81/0.76, but no redesigned sequence
 
 The six course GPU jobs consumed 4,427 seconds, or **1.230 A100-hours**. The accounting audit also includes 501 seconds of earlier RFD4 generation and 53 seconds of BindCraft GPU validation: **4,981 seconds = 1.384 hours** before this round. CPU setup time is excluded. Slurm elapsed allocation time is not GPU utilization or billing.
 
-The [metrics figure](../outputs/analysis/20261112/pilot_metrics.png), [JSON](../outputs/analysis/20261112/campaign_metrics.json) and [CSV](../outputs/analysis/20261112/campaign_metrics.csv) are reproducible with `scripts/summarize_campaigns.py`. The JSON retains source hashes. Full RFD4 overlap details remain in [the historical results](course_pilot_results.md).
+Run `scripts/summarize_campaigns.py` against the local campaigns to rebuild the metrics figure, JSON and CSV. The script requires an available generation log to count attempts. Supply `--log FILE` for a single campaign when its native log is missing and you have a specific scheduler log. The JSON retains source hashes. [Historical RFD4 results](course_pilot_results.md)
 
 ## Proposal review
 

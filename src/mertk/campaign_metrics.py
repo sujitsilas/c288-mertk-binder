@@ -38,18 +38,23 @@ def summarize(campaign, *, log_path=None, completed=None):
     campaign = Path(campaign)
     manifest = json.loads((campaign / "manifest.json").read_text())
     designs = campaign / "bindcraft/designs"
-    logs = (
-        [Path(log_path)]
-        if log_path
-        else sorted((campaign / "logs").glob(f"{manifest['campaign_id']}_bindcraft_generate_*.log"))
-    )
-    if log_path is None and (campaign / "bindcraft/run.log").exists():
-        logs = [campaign / "bindcraft/run.log"]
-    if len(logs) > 1:
-        raise ValueError(
-            "Multiple generation logs; select one explicitly instead of double counting"
+    log = Path(log_path) if log_path is not None else campaign / "bindcraft/run.log"
+    if log_path is None and not log.is_file():
+        # The native log is the direct capture. Scheduler stdout can duplicate that log.
+        scheduler_logs = sorted(
+            (campaign / "logs").glob(f"{manifest['campaign_id']}_bindcraft_generate_*.log")
         )
-    text = logs[0].read_text(errors="replace") if logs and logs[0].exists() else ""
+        if len(scheduler_logs) > 1:
+            raise ValueError(
+                "Multiple generation logs; select one explicitly to count trajectories"
+            )
+        if scheduler_logs:
+            log = scheduler_logs[0]
+    if not log.is_file():
+        raise FileNotFoundError(f"No generation log for {manifest['campaign_id']}: {log}")
+    text = log.read_text(errors="replace")
+    if not text.strip():
+        raise ValueError(f"Generation log is empty: {log}")
     starts = re.findall(r"^Starting trajectory: (\S+)", text, re.M)
     if len(starts) != len(set(starts)):
         raise ValueError("Duplicate trajectory starts in one run")
@@ -68,7 +73,7 @@ def summarize(campaign, *, log_path=None, completed=None):
     finished = starts if completed else starts[:-1]
     finished_successes = len(parents & set(finished))
     failures = csv_rows(designs / "failure_csv.csv")
-    sources = [p for p in designs.glob("*.csv") if p.is_file()] + [p for p in logs if p.exists()]
+    sources = [p for p in designs.glob("*.csv") if p.is_file()] + [log]
     quality_path = campaign / "native_quality.json"
     quality = json.loads(quality_path.read_text()) if quality_path.exists() else {}
     return {

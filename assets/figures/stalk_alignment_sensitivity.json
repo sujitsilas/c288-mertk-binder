@@ -1,0 +1,68 @@
+{
+  "settings": {
+    "aligned_residues": [
+      485,
+      498
+    ],
+    "draws": 200,
+    "seed": 2436,
+    "per_coordinate_normal_sd_A": 0.5,
+    "probe_radius_A": 20.0,
+    "summary_statistic": "Maximum displacement of two probes along the minor principal axes per draw."
+  },
+  "conformers": {
+    "base": {
+      "coordinate_spread_A": [
+        48.735,
+        6.696,
+        3.272
+      ],
+      "probe_displacement_A": {
+        "median": 1.15,
+        "p95": 2.623,
+        "max": 4.093
+      }
+    },
+    "psi490_plus25": {
+      "coordinate_spread_A": [
+        49.22,
+        5.113,
+        3.223
+      ],
+      "probe_displacement_A": {
+        "median": 1.279,
+        "p95": 3.406,
+        "max": 4.714
+      }
+    },
+    "psi490_minus25": {
+      "coordinate_spread_A": [
+        47.2,
+        9.414,
+        3.389
+      ],
+      "probe_displacement_A": {
+        "median": 0.933,
+        "p95": 2.112,
+        "max": 2.647
+      }
+    }
+  },
+  "screen": {
+    "poses": 50,
+    "pass_all_three": 0,
+    "median_fraction_stalk_contacts": 0.264,
+    "poses_with_fewer_than_half_contacts_on_stalk": 46,
+    "poses_with_insufficient_or_off_stalk_contacts": 48,
+    "pose_conformer_combinations": 150,
+    "below_membrane_margin": 33,
+    "beyond_modeled_plane": 9,
+    "minimum_clearance_relative_to_margin_A": -14.485
+  },
+  "sources_sha256": {
+    "base_full_context.pdb": "d9a7cb18545461ac4a57ecd12817fdde77b7bafaf3e6192ca481c05b8981eb1f",
+    "psi490_plus25_full_context.pdb": "00ecb0f966e4b924a88bfbbf17032cf296fbd66725b2ec3ecb5f5d3994a42b46",
+    "psi490_minus25_full_context.pdb": "6d5807437cf7524348da03c98cc6ff0fd2283e2b49ccd03dd3c04e1261c57dbe",
+    "stalk_geometry.json": "262651c235586fa23bf9a786c451964e3eda038580007ebd715a9aa11ddc250a"
+  }
+}

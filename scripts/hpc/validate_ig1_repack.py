@@ -12,7 +12,7 @@ from Bio.PDB import MMCIFParser, PDBParser
 from repack_ig1_boltz import LYSINES, SEEDS, coords, distance, heavy, proteins, save_json
 
 from mertk.prediction_review import inspect_pose
-from mertk.provenance import file_hash
+from mertk.provenance import file_hash, source_revision
 from mertk.structural import rmsd
 
 
@@ -85,6 +85,8 @@ def prepare(suite, original):
                 "recycles": 3,
                 "sampling_steps": 200,
                 "receptor_template_only": True,
+                **source_revision(__file__),
+                "workflow_sha256": file_hash(__file__),
             },
         },
     )

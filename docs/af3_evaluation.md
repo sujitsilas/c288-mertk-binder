@@ -54,8 +54,9 @@ For each candidate, select the highest **unrounded AF3 ranking score**, then mea
 | Target–binder pair ipTM ≥ 0.8 | Model confidence in the predicted interface |
 | Binder fold Cα RMSD ≤ 2 Å | Consistency with the candidate's imported binder fold after binder alignment |
 | Binder pose Cα RMSD ≤ 3 Å | Consistency with the candidate pose after target alignment |
-| Reference coordinate coverage ≥ 0.9 | Enough matched coordinates for comparison |
 | No severe clash flag | AF3's reported clash assessment |
+
+The legacy `reference_coverage` field is an input completeness check. Current reference imports require a complete, finite backbone and the scorer rejects predictions with missing Cα atoms as invalid output. Coverage therefore equals 1.0 for every scored import, leaving four discriminating structural gates.
 
 Also report target-alignment RMSD, contact retention, directional interface PAE and binder atom pLDDT. None is a binding-affinity measurement. The geometry reference is the candidate complex, so substantial generator-induced changes to the experimental receptor must be assessed independently before nomination. No direct 37NT deformation gate is implemented in the scorer.
 

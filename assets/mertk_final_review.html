@@ -6,7 +6,7 @@
 <title>Targeting MerTK to improve efferocytosis | C288</title>
 <style>
   :root {
-    color-scheme: light;
+    color-scheme: light dark;
     --ink: #172e31;
     --muted: #456064;
     --line: #d3ded9;
@@ -18,6 +18,8 @@
     --purple: #69459a;
     --green: #237356;
     --coral: #a54a38;
+    --plot-line: #15685e;
+    --plot-stalk: #efe3f4;
     font: 16px/1.58 system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; }
@@ -41,16 +43,14 @@
   nav a { text-decoration: none; font-weight: 650; font-size: .84rem; }
   nav a:hover { text-decoration: underline; }
   .proposal-link { border: 1px solid #bbcfca; padding: 5px 10px; border-radius: 4px; }
-  .hero { background: var(--dark); color: var(--white); }
+  .hero { background: var(--dark); color: #fff; }
   .hero .shell { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(310px, 1fr); gap: clamp(25px, 6vw, 82px); align-items: center; padding-block: clamp(39px, 5.3vw, 76px); }
   .hero-description { max-width: 59ch; margin-top: 19px; color: #dceae5; }
   .hero-description a { color: #a8decd; }
-  .hero-summary { border-top: 1px solid #496364; }
-  .hero-summary p { margin-top: 13px; color: #dfebe6; font-size: .9rem; }
-  .run-counts { font-variant-numeric: tabular-nums; }
-  .run-counts > div { display: grid; grid-template-columns: 4.3rem minmax(0, 1fr); gap: 15px; align-items: center; padding: 12px 0; border-bottom: 1px solid #496364; }
-  .run-counts dt { grid-column: 2; grid-row: 1; color: #e2efe8; font-weight: 580; line-height: 1.35; }
-  .run-counts dd { grid-column: 1; grid-row: 1; color: #b5e5d2; font-family: Georgia, serif; font-size: 1.98rem; line-height: 1.05; margin: 0; white-space: nowrap; }
+  .hero-summary { border-block: 1px solid #496364; padding: 14px 0 17px; }
+  .hero-summary h2 { font-size: clamp(1.55rem, 2.7vw, 2.28rem); color: #b5e5d2; }
+  .hero-summary p { margin-top: 12px; color: #e4f0eb; font-size: .98rem; }
+  .hero-summary strong { color: #fff; }
   main > section { padding-block: clamp(35px, 5.5vw, 70px); scroll-margin-top: 12px; }
   main > section + section { border-top: 1px solid var(--line); }
   .section-head { margin-bottom: 23px; }
@@ -66,6 +66,7 @@
   .evidence li { border-top: 1px solid var(--line); padding: 11px 0; }
   .evidence strong { display: block; font-size: .94rem; }
   .evidence p { margin-top: 3px; }
+  .evidence .finding { color: var(--ink); font-weight: 590; }
   .evidence a { display: inline-block; margin-top: 4px; font-size: .83rem; }
   .aim-conclusion { border-top: 1px solid var(--line); margin: 0 22px; padding: 12px 0 17px; }
   .diagram-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -95,10 +96,17 @@
   .expression-figure { margin-top: 11px; }
   .expression-figure img { display: block; width: min(100%, 890px); height: auto; }
   .expression-figure figcaption { color: var(--muted); font-size: .85rem; margin-top: 5px; }
+  .analysis-figure { margin: 0 0 20px; padding: clamp(13px, 3vw, 22px); border: 1px solid var(--line); border-radius: 9px; background: var(--white); }
+  .analysis-figure > canvas { display: block; width: 100%; height: 252px; margin-top: 6px; }
+  .analysis-figure figcaption { max-width: 90ch; color: var(--muted); font-size: .88rem; }
+  .analysis-figure figcaption + p { margin-top: 8px; }
+  .analysis-figure .legend { margin-top: 0; }
+  .evidence-section { margin-top: 22px; }
+  .verdict-cell { font-weight: 650; }
   .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 13px; }
   .controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
   .toolbar label, .panel-actions button { font-size: .86rem; font-weight: 630; }
-  select, .panel-actions button, .aims button { border: 1px solid #b9cbc8; background: #fff; border-radius: 5px; padding: 6px 9px; }
+  select, .panel-actions button, .aims button { border: 1px solid var(--line); background: var(--white); border-radius: 5px; padding: 6px 9px; }
   .aims { display: flex; gap: 6px; flex-wrap: wrap; }
   .aims button { font-size: .89rem; font-weight: 670; padding: 7px 11px; }
   .aims button[aria-pressed="true"] { background: var(--dark); color: white; border-color: var(--dark); }
@@ -128,13 +136,13 @@
   .legend { display: flex; gap: 4px 16px; flex-wrap: wrap; padding: 0; margin: 10px 0 6px; list-style: none; font-size: .83rem; color: var(--muted); }
   .legend i { display: inline-block; width: .72em; height: .72em; margin-right: .35em; border-radius: 50%; background: var(--dot); }
   .comparison-note { font-size: .89rem; color: var(--muted); }
-  .table-wrap { overflow-x: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; background: white; }
+  .table-wrap { overflow-x: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); }
   table { border-collapse: collapse; width: 100%; text-align: left; font-size: .86rem; font-variant-numeric: tabular-nums; }
-  th, td { padding: 8px 10px; border-bottom: 1px solid #e3e9e7; white-space: nowrap; }
-  thead th { background: var(--wash); color: #324d52; font-size: .8rem; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  thead th { background: var(--wash); color: var(--ink); font-size: .8rem; }
   tr:last-child > * { border-bottom: 0; }
   tbody th { font-weight: 620; }
-  tbody tr:hover { background: #f3f7f3; }
+  tbody tr:hover { background: var(--wash); }
   .table-button { border: 0; padding: 0; background: transparent; color: var(--teal); text-align: left; text-decoration: underline; text-underline-offset: .2em; }
   .experiments { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .experiment { padding: 14px 18px; }
@@ -145,6 +153,25 @@
   footer details + details { margin-top: 7px; }
   footer pre { white-space: pre-wrap; max-width: 95ch; font-size: .75rem; }
   #viewer-error { margin-bottom: 12px; color: #8e2c1d; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e1ebe7;
+      --muted: #b0c3bc;
+      --line: #40534f;
+      --paper: #172522;
+      --white: #1c302b;
+      --teal: #8bd7bd;
+      --wash: #243d35;
+      --purple: #c4a2ed;
+      --green: #9de5bd;
+      --coral: #f7a68f;
+      --plot-line: #9de5d3;
+      --plot-stalk: #483a51;
+    }
+    .aims button[aria-pressed="true"], .structure-actions [aria-pressed="true"] { border-color: var(--teal); }
+    .flagged, #viewer-error { color: var(--coral); }
+    .activation canvas, .expression-figure img { background: #f0f4f3; }
+  }
   @media (max-width: 900px) {
     .shell { width: min(100% - 40px, 1190px); }
     .hero .shell { gap: 28px; }
@@ -168,8 +195,8 @@
     <div class="shell">
       <div class="identity">Sujit Silas · C288 final project</div>
       <nav aria-label="Page sections">
-        <a href="#workflow">Results</a><a href="#predictions">3D models</a>
-        <a href="#mechanism">Cleavage site</a><a href="#validation">Validation</a>
+        <a href="#mechanism">Cleavage site</a><a href="#workflow">Results</a>
+        <a href="#predictions">3D models</a><a href="#validation">Validation</a>
 <!-- local-only -->        <a class="proposal-link" href="../../Report/Targeting%20MerTK%20to%20improve%20efferocytosis%20during%20inflammation.docx" download>Submission draft</a><!-- /local-only -->
       </nav>
     </div>
@@ -181,15 +208,74 @@
         <p class="hero-description">Efferocytosis is the removal of dying cells by immune cells. I designed proteins to help macrophages use MerTK for uptake and to protect the receptor from ADAM17-mediated cleavage during inflammation. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3190938/">MerTK shedding study</a></p>
       </div>
       <aside class="hero-summary" aria-label="Computational results">
-        <dl class="run-counts">
-          <div><dt>Ig1 sequences passed BindCraft filters</dt><dd id="hero-generation"></dd></div>
-        </dl>
-        <p>Two Ig1 variants give a starting scaffold. Binding, protection, and efferocytosis remain to be tested experimentally.</p>
+        <h2>What the models established</h2>
+        <p><strong>Ig1 binder.</strong> Restrained repacking improved the modeled fit. Clashes returned when the designs were refolded.</p>
+        <p><strong>Stalk protector.</strong> Low confidence near the cleavage site and inconclusive controls limit what the screen can establish about binding.</p>
       </aside>
     </div>
   </div>
 </header>
 <main class="shell">
+  <section id="mechanism" aria-labelledby="mechanism-title">
+    <div class="section-head">
+      <h2 id="mechanism-title">The MerTK cleavage region</h2>
+      <p>The reported ADAM17 cleavage bond lies in the membrane-proximal stalk. A binder just upstream could block enzyme access while leaving the Ig domains available to GAS6. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC13378718/">MerTK shedding study</a></p>
+    </div>
+    <figure class="analysis-figure" aria-labelledby="stalk-profile-title">
+      <h3 id="stalk-profile-title">Model confidence drops near the cleavage site</h3>
+      <canvas id="stalk-confidence-chart" role="img" aria-label="AlphaFold local confidence by human MerTK residue, from 440 to 530. Confidence drops below 50 at the cleavage site at residues 490 and 491.">The residue scores are listed in the stalk model panel.</canvas>
+      <figcaption>The shaded band spans the stalk window used for alignment. P490 and S491 have pLDDT scores of 37.8 and 35.6. Low pLDDT indicates uncertainty in the predicted coordinates. <a href="https://alphafold.ebi.ac.uk/entry/Q12866">AlphaFold model Q12866</a></figcaption>
+    </figure>
+    <div class="mechanism">
+      <div class="diagram-grid">
+        <div>
+          <h3>Crystal structure · 37NT</h3>
+          <p>The experimentally resolved human MerTK ectodomain ends at Gly484.</p>
+          <div id="mechanism-crystal" class="structure-view" aria-label="Interactive 37NT crystal structure of human MerTK highlighting Gly484"></div>
+          <ul class="legend structure-key" aria-label="Crystal structure colors">
+            <li style="--dot:#2c7299"><i></i>Ig1</li><li style="--dot:#388881"><i></i>Ig2</li>
+            <li style="--dot:#93aab5"><i></i>Other ectodomain regions</li><li style="--dot:#875a17"><i></i>Gly484</li>
+          </ul>
+          <div class="panel-actions structure-actions"><button type="button" id="reset-crystal">Reset view</button></div>
+          <p class="structure-note"><a href="https://www.rcsb.org/structure/37NT">37NT structure</a></p>
+        </div>
+        <div>
+          <h3>Modeled stalk · Pro490–Ser491</h3>
+          <p>The stalk coordinates are predicted. The red bond marks the reported cleavage site.</p>
+          <div id="mechanism-stalk" class="structure-view" aria-label="Interactive MerTK stalk model highlighting human Tyr488, Pro490, Ser491, and the cleavage bond"></div>
+          <ul class="legend structure-key" aria-label="Stalk model colors">
+            <li style="--dot:#875a17"><i></i>Gly484 landmark</li><li style="--dot:#087f74"><i></i>Tyr488 hotspot</li>
+            <li style="--dot:#963847"><i></i>Pro490 / Ser491</li><li style="--dot:#e22443"><i></i>ADAM17 cut</li>
+          </ul>
+          <div class="panel-actions structure-actions"><button type="button" id="toggle-stalk-pose" aria-pressed="false">Show L67 prediction</button><button type="button" id="reset-stalk">Reset view</button></div>
+          <p class="structure-note" id="stalk-structure-note"><a href="https://alphafold.ebi.ac.uk/entry/Q12866">Original stalk model</a></p>
+          <details class="stalk-confidence">
+            <summary id="stalk-confidence-summary">Stalk shape confidence</summary>
+            <p id="stalk-confidence-scale"></p>
+            <ul class="stalk-scores" id="stalk-confidence-values" aria-label="Per-residue AFDB pLDDT"></ul>
+          </details>
+        </div>
+      </div>
+      <details class="activation" id="protector-cap">
+        <summary id="protector-cap-title">Optional protease-activated cap</summary>
+        <p>After a protector works on its own, a cleavable linker could allow local proteases to release a cap and expose the MerTK-binding surface. <a href="https://pubmed.ncbi.nlm.nih.gov/42818144/">Masking precedent</a></p>
+        <ol>
+          <li>
+            <strong>1. Cap covers the binding surface</strong>
+            <canvas id="activation-masked" width="660" height="352" role="img" aria-label="A cap sits against the protector’s receptor-binding face. The GPQG↓IWGQ peptide linker connects the cap to the protector."></canvas>
+          </li>
+          <li>
+            <strong>2. Protease cleaves the linker</strong>
+            <canvas id="activation-cut" width="660" height="352" role="img" aria-label="After cleavage, the GPQG and IWGQ portions of the tether separate as the cap dissociates from the protector."></canvas>
+          </li>
+          <li>
+            <strong>3. Protector can bind the stalk</strong>
+            <canvas id="activation-bound" width="660" height="352" role="img" aria-label="The exposed protector sits against a schematic MerTK stalk, covering the red Pro490–Ser491 cut site."></canvas>
+          </li>
+        </ol>
+      </details>
+    </div>
+  </section>
   <section id="workflow" aria-labelledby="workflow-title">
     <div class="section-head"><h2 id="workflow-title">Results by aim</h2></div>
     <div class="aim-grid">
@@ -201,7 +287,7 @@
         <ol class="evidence">
           <li><strong>Generated two sequences on one scaffold</strong><p id="generation-result"></p><!-- local-only --><a href="../hpc/round_20261114_ig_guard_01/campaigns/Ig1_E152/metrics.json">BindCraft run metrics</a><!-- /local-only --></li>
           <li><strong>Improved the modeled interface</strong><p id="local-result"></p><!-- local-only --><a href="../hpc/round_20261120_ig1_relax_01/assessment.json">FastRelax data</a><!-- /local-only --></li>
-          <li><strong>Tested whether the fit survived refolding</strong><p id="refold-result"></p><a href="#ig1-repair">Compare the repaired poses and refolds</a></li>
+          <li><strong>Tested whether the fit survived refolding</strong><p class="finding" id="refold-result"></p><a href="#ig1-repair">Compare the repaired poses and refolds</a></li>
         </ol>
         <p class="aim-conclusion" id="q124-result"></p>
       </article>
@@ -212,12 +298,21 @@
         </header>
         <ol class="evidence">
           <li><strong>Mapped the cleavage region</strong><p id="stalk-context"></p><a href="#mechanism">See the structure and cut site</a></li>
-          <li><strong>Screened protector poses</strong><p id="stalk-result"></p><!-- local-only --><a href="../hpc/round_20261120_mertk_pose_followup_01/stalk_geometry.json">Geometry screen</a><!-- /local-only --></li>
-          <li><strong>Benchmarked predicted binding</strong><p id="control-result"></p><a href="#predictions">Compare the controls in 3D</a></li>
+          <li><strong>Screened protector poses</strong><p class="finding" id="stalk-result"></p><!-- local-only --><a href="../hpc/round_20261120_mertk_pose_followup_01/stalk_geometry.json">Geometry screen</a><!-- /local-only --></li>
+          <li><strong>Benchmarked predicted binding</strong><p class="finding" id="control-result"></p><a href="#predictions">Compare the controls in 3D</a></li>
         </ol>
-        <p class="aim-conclusion">The transcript screen identified enzymes for a future cap-release assay. Functional testing starts with the protector by itself. <a href="#protease-data">Protease data</a> · <a href="#protector-cap">Cap design</a></p>
+        <p class="aim-conclusion">The burn-wound RNA data identify candidates for activity assays. Functional testing starts with the protector by itself. <a href="#protease-data">Burn-wound data</a> · <a href="#protector-cap">Cap design</a></p>
       </article>
     </div>
+    <figure class="analysis-figure evidence-section" aria-labelledby="confidence-clash-title">
+      <h3 id="confidence-clash-title">High-confidence Ig1 predictions still overlapped MerTK</h3>
+      <canvas id="clash-chart" role="img" aria-label="Scatterplot of protein separation and reported interface confidence for 13 crystal-aligned structures. All six Boltz-2 refolds are below 2 angstroms. GAS6 is the only plotted complex above 2 angstroms.">The scores and distances are listed in the prediction table.</canvas>
+      <ul class="legend" aria-label="Scatterplot groups">
+        <li style="--dot:#4d8dac"><i></i>BindCraft</li><li style="--dot:#a56fc8"><i></i>Initial Boltz-2 design</li>
+        <li style="--dot:#41a58b"><i></i>Boltz-2 repair refold</li><li style="--dot:#d28a51"><i></i>Controls</li>
+      </ul>
+      <figcaption>GAS6 was the only crystal-aligned case to clear the 2 Å protein-overlap cutoff in this comparison. The six repair refolds still overlapped at 0.47–1.30 Å despite high global ipTM. The four stalk overlays have uncertain alignment and are omitted from the plot. BindCraft ensemble means and Boltz-2 scores are shown for context.</figcaption>
+    </figure>
     <details class="research-details" id="ig1-repair">
       <summary>Ig1 repair and refold measurements</summary>
       <p id="repair-status"></p>
@@ -302,82 +397,31 @@
       <li style="--dot:#7750b0"><i></i>Design candidate</li>
     </ul>
     <p class="comparison-note" id="view-note"></p>
-    <details class="research-details">
-      <summary>Full prediction scores</summary>
-      <p><strong>ipTM</strong> estimates confidence in how the two proteins are positioned. <strong>pLDDT</strong> estimates local structural confidence. <strong>Contact PAE</strong> estimates the uncertainty in the relative positions of contacting residues. Lower PAE is better. These scores do not measure affinity. Stalk overlay distances are shown only when the local fit RMSD is within <span id="stalk-overlay-threshold"></span> and the partner contacts the stalk.<!-- local-only --> <a href="../hpc/round_20261120_mertk_pose_followup_01/assessment.json">Raw scores</a><!-- /local-only --></p>
+    <div class="evidence-section" id="score-table">
+      <h3>Prediction scores and geometry</h3>
+      <p class="comparison-note"><strong>ipTM</strong> estimates interface confidence, <strong>pLDDT</strong> estimates local structural confidence, and <strong>contact PAE</strong> estimates positional uncertainty. The Boltz-2 column reports global ipTM. For the initial I32G/W83F case, global ipTM is 0.85 and directional ipTM scores are 0.41 and 0.85. The earlier AF3 nomination rule uses the lower directional score.</p>
+      <p class="comparison-note">Stalk overlay distances are reported when the local fit RMSD is within <span id="stalk-overlay-threshold"></span> and the partner contacts the stalk. Cases outside this rule are labeled as uncertain or off-stalk. Select any row to inspect the model.<!-- local-only --> <a href="../hpc/round_20261120_mertk_pose_followup_01/assessment.json">Raw scores</a><!-- /local-only --></p>
       <div class="table-wrap" tabindex="0" role="region" aria-label="Scrollable Boltz-2 results table">
-        <table aria-label="Boltz-2 results and geometry">
+        <table aria-label="BindCraft and Boltz-2 results and geometry">
           <thead>
-            <tr><th scope="col">Boltz-2 case</th><th scope="col">ipTM ↑</th><th scope="col">Partner pLDDT ↑</th><th scope="col">Contact PAE ↓</th>
+            <tr><th scope="col">Case</th><th scope="col">Geometry verdict</th><th scope="col">ipTM ↑</th><th scope="col">Partner pLDDT ↑</th><th scope="col">Contact PAE ↓</th>
               <th scope="col">Ig1 contacts</th><th scope="col">Stalk contacts</th><th scope="col">Cut distance</th>
               <th scope="col">Overlay RMSD</th><th scope="col">Protein minimum</th><th scope="col">Glycan minimum</th></tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
-    </details>
+    </div>
   </section>
-  <section id="mechanism" aria-labelledby="mechanism-title">
+  <section id="protease-data" aria-labelledby="expression-title">
     <div class="section-head">
-      <h2 id="mechanism-title">The MerTK cleavage region</h2>
-      <p>The reported ADAM17 cleavage bond lies in the membrane-proximal stalk. A binder just upstream could block enzyme access while leaving the Ig domains available to GAS6. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC13378718/">MerTK shedding study</a></p>
+      <h2 id="expression-title">MerTK pathway RNA after burn</h2>
+      <p>In the burn model, macrophage Mertk and Gas6 estimates were lower, with uncertainty after multiple-testing correction. Adam17 induction was inconclusive. Mmp8 increased in both cell populations.</p>
     </div>
-    <div class="mechanism">
-      <div class="diagram-grid">
-        <div>
-          <h3>Crystal structure · 37NT</h3>
-          <p>The experimentally resolved human MerTK ectodomain ends at Gly484.</p>
-          <div id="mechanism-crystal" class="structure-view" aria-label="Interactive 37NT crystal structure of human MerTK highlighting Gly484"></div>
-          <ul class="legend structure-key" aria-label="Crystal structure colors">
-            <li style="--dot:#2c7299"><i></i>Ig1</li><li style="--dot:#388881"><i></i>Ig2</li>
-            <li style="--dot:#93aab5"><i></i>Other ectodomain regions</li><li style="--dot:#875a17"><i></i>Gly484</li>
-          </ul>
-          <div class="panel-actions structure-actions"><button type="button" id="reset-crystal">Reset view</button></div>
-          <p class="structure-note"><a href="https://www.rcsb.org/structure/37NT">37NT structure</a></p>
-        </div>
-        <div>
-          <h3>Modeled stalk · Pro490–Ser491</h3>
-          <p>The stalk coordinates are predicted. The red bond marks the reported cleavage site.</p>
-          <div id="mechanism-stalk" class="structure-view" aria-label="Interactive MerTK stalk model highlighting human Tyr488, Pro490, Ser491, and the cleavage bond"></div>
-          <ul class="legend structure-key" aria-label="Stalk model colors">
-            <li style="--dot:#875a17"><i></i>Gly484 landmark</li><li style="--dot:#087f74"><i></i>Tyr488 hotspot</li>
-            <li style="--dot:#963847"><i></i>Pro490 / Ser491</li><li style="--dot:#e22443"><i></i>ADAM17 cut</li>
-          </ul>
-          <div class="panel-actions structure-actions"><button type="button" id="toggle-stalk-pose" aria-pressed="false">Show L67 prediction</button><button type="button" id="reset-stalk">Reset view</button></div>
-          <p class="structure-note" id="stalk-structure-note"><a href="https://alphafold.ebi.ac.uk/entry/Q12866">Original stalk model</a></p>
-          <details class="stalk-confidence">
-            <summary id="stalk-confidence-summary">Stalk shape confidence</summary>
-            <p id="stalk-confidence-scale"></p>
-            <ul class="stalk-scores" id="stalk-confidence-values" aria-label="Per-residue AFDB pLDDT"></ul>
-          </details>
-        </div>
-      </div>
-      <details class="activation" id="protector-cap">
-        <summary id="protector-cap-title">Optional protease-activated cap</summary>
-        <p>After a protector works on its own, a cleavable linker could allow local proteases to release a cap and expose the MerTK-binding surface. <a href="https://pubmed.ncbi.nlm.nih.gov/42818144/">Masking precedent</a></p>
-        <ol>
-          <li>
-            <strong>1. Cap covers the binding surface</strong>
-            <canvas id="activation-masked" width="660" height="352" role="img" aria-label="A cap sits against the protector’s receptor-binding face. The GPQG↓IWGQ peptide linker connects the cap to the protector."></canvas>
-          </li>
-          <li>
-            <strong>2. Protease cleaves the linker</strong>
-            <canvas id="activation-cut" width="660" height="352" role="img" aria-label="After cleavage, the GPQG and IWGQ portions of the tether separate as the cap dissociates from the protector."></canvas>
-          </li>
-          <li>
-            <strong>3. Protector can bind the stalk</strong>
-            <canvas id="activation-bound" width="660" height="352" role="img" aria-label="The exposed protector sits against a schematic MerTK stalk, covering the red Pro490–Ser491 cut site."></canvas>
-          </li>
-        </ol>
-      </details>
-    </div>
-    <details class="research-details" id="protease-data">
-      <summary>Pooled protease transcript counts</summary>
-      <figure class="expression-figure">
-        <img alt="Plot ranking 545 detected protease genes by pooled transcript counts, with a table highlighting Ctsb, Asprv1, Ctss, Mmp12, Adam17 and Mmp8." src="data:image/png;base64,__PROTEASE_FIGURE__" width="2320" height="454">
-        <figcaption>Pooled counts from 77,967 cells across ten cell types and 21 mouse burn and sham samples. Adam17 ranked 44th and Mmp8 ranked 86th by RNA abundance. The ranking guides enzyme selection. Cleavage activity requires a separate assay.<!-- local-only --> <a href="../burn_sham/pooled_protease_transcripts.tsv">Count table</a><!-- /local-only --></figcaption>
-      </figure>
-    </details>
+    <figure class="analysis-figure expression-figure">
+      <img alt="Forest plot of day-adjusted burn versus sham RNA estimates in macrophages and the monocyte and monocyte-derived macrophage group." src="data:image/png;base64,__EXPRESSION_FIGURE__" width="2016" height="936">
+      <figcaption>Day-adjusted pseudobulk estimates from reconstructed counts. Macrophages contributed 11 burn and 10 sham samples. The monocyte and monocyte-derived macrophage group contributed 9 burn and 8 sham samples. Bars are pointwise 95% intervals. Filled points meet a within-population transcriptome FDR below 0.05. Testing what drives MerTK shedding requires measuring receptor fragments and protease activity. <a href="https://github.com/sujitsilas/c288-mertk-binder/blob/main/docs/burn_sham_mask_20261118.md#mertk-axis-expression-using-reconstructed-counts">Analysis and aggregate data</a></figcaption>
+    </figure>
   </section>
   <section id="validation" aria-labelledby="validation-title">
     <div class="section-head">
@@ -406,21 +450,25 @@
       <summary>Methods and source data</summary>
       <p id="protocol"></p>
       <p id="method-results"></p>
+      <p id="alignment-audit"></p>
       <ul>
 <!-- local-only -->        <li><a href="../hpc/round_20261114_ig_guard_01/campaigns/Ig1_E152/metrics.json">BindCraft metrics</a> · <a href="../hpc/round_20261120_ig1_local_geometry_02/independent.json">AlphaFold2 refolds</a> · <a href="../hpc/round_20261121_ig1_boltz_repack_01/validation/assessment.json">Boltz-2 refolds</a></li><!-- /local-only -->
 <!-- local-only -->        <li><a href="../hpc/round_20261120_mertk_pose_followup_01/manifest.json">Prediction manifest</a> · <a href="mertk_protector_predictions.json">Scores and source hashes</a> · <a href="../../docs/prediction_review.md">Viewer documentation</a></li><!-- /local-only -->
-        <li><a href="https://www.rcsb.org/structure/37NT">Crystal structure 37NT</a> · <a href="https://alphafold.ebi.ac.uk/entry/Q12866">AlphaFold model Q12866</a></li>
+        <li><a href="https://www.rcsb.org/structure/37NT">Crystal structure 37NT</a> · <a href="https://alphafold.ebi.ac.uk/entry/Q12866">AlphaFold model Q12866</a> · <a href="https://github.com/sujitsilas/c288-mertk-binder/blob/main/docs/stalk_fit_diagnostics.md">Stalk alignment audit</a></li>
       </ul>
     </details>
     <details><summary>3Dmol.js license</summary><pre>__LICENSE__</pre></details>
   </div>
 </footer>
 <script>__LIBRARY__</script>
-<script type="application/json" id="review-data">__DATA__</script>
+<script type="application/octet-stream" id="review-data">__DATA__</script>
 <script>
 "use strict";
 const byId = id => document.getElementById(id);
-const data = JSON.parse(byId("review-data").textContent);
+async function startReview() {
+const bytes = Uint8Array.from(atob(byId("review-data").textContent), character => character.charCodeAt(0));
+const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+const data = await new Response(stream).json();
 const cases = new Map(data.cases.map(item => [item.id, item]));
 const defaults = {Ig1: cases.has("repair_original_s202") ? "repair_original_s202" : "01_ig1_i32g_w83f", Stalk: "07_stalk_base67_plus25"};
 const chosen = {...defaults};
@@ -431,7 +479,7 @@ const viewers = {};
 let aim = "Ig1";
 const fmt = (value, digits = 2) => Number.isFinite(value) ? value.toFixed(digits) : "—";
 const distance = (value, digits = 2) => Number.isFinite(value) ? fmt(value, digits) + " Å" : "—";
-const overlayDistance = (item, value) => item.overlayReliable === false ? "Withheld" : distance(value);
+const overlayDistance = (item, value) => item.overlayReliable === false ? "Unreliable fit" : distance(value);
 const cutMin = item => item.cutDistances ? Math.min(...item.cutDistances) : null;
 const range = (start, end) => Array.from({length: end - start + 1}, (_, i) => start + i);
 const node = (tag, content) => {
@@ -453,6 +501,108 @@ function makeViewer(host, background) {
     host.replaceChildren(empty);
     return null;
   }
+}
+
+function plotWhenVisible(id, bounds, labels, draw) {
+  const canvas = byId(id);
+  const context = canvas.getContext("2d");
+  const theme = matchMedia("(prefers-color-scheme: dark)");
+  function paint() {
+    const {width, height} = canvas.getBoundingClientRect();
+    if (!width || !height || !context) return;
+    const scale = devicePixelRatio || 1;
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    context.setTransform(scale, 0, 0, scale, 0, 0);
+    const style = getComputedStyle(canvas);
+    const themeColor = name => style.getPropertyValue(name).trim();
+    const ink = themeColor("--muted"), grid = themeColor("--line");
+    const [xLow, xHigh, yLow, yHigh] = bounds;
+    const left = 54, top = 22, right = width - 16, bottom = height - 45;
+    const x = value => left + (value - xLow) * (right - left) / (xHigh - xLow);
+    const y = value => bottom - (value - yLow) * (bottom - top) / (yHigh - yLow);
+    function line(x1, y1, x2, y2, color, stroke = 1, dashed = false) {
+      context.setLineDash(dashed ? [5, 4] : []);
+      context.strokeStyle = color;
+      context.lineWidth = stroke;
+      context.beginPath();
+      context.moveTo(x1, y1);
+      context.lineTo(x2, y2);
+      context.stroke();
+      context.setLineDash([]);
+    }
+    function text(label, px, py, color = ink, align = "left") {
+      context.font = "12px system-ui, sans-serif";
+      context.fillStyle = color;
+      context.textAlign = align;
+      context.fillText(label, px, py);
+    }
+    function gridLines(xTicks, yTicks) {
+      for (const tick of yTicks) {
+        line(left, y(tick), right, y(tick), grid);
+        text(tick, left - 7, y(tick) + 4, ink, "right");
+      }
+      for (const tick of xTicks) {
+        line(x(tick), bottom, x(tick), bottom + 5, ink);
+        text(tick, x(tick), bottom + 19, ink, "center");
+      }
+      line(left, top, left, bottom, ink);
+      line(left, bottom, right, bottom, ink);
+    }
+    draw({width, context, themeColor, x, y, top, bottom, left, right, line, text, gridLines});
+    text(labels[0], (left + right) / 2, height - 4, ink, "center");
+    context.save();
+    context.translate(13, (top + bottom) / 2);
+    context.rotate(-Math.PI / 2);
+    text(labels[1], 0, 0, ink, "center");
+    context.restore();
+  }
+  new ResizeObserver(paint).observe(canvas);
+  theme.addEventListener("change", paint);
+}
+
+function drawStalkChart() {
+  plotWhenVisible(
+    "stalk-confidence-chart", [440, 530, 0, 100], ["Human MerTK residue", "AlphaFold pLDDT"],
+    ({width, context, themeColor, x, y, top, bottom, left, right, line, text, gridLines}) => {
+      context.fillStyle = themeColor("--plot-stalk");
+      context.fillRect(x(484.5), top, x(498.5) - x(484.5), bottom - top);
+      gridLines(width < 420 ? [440, 460, 490, 510, 530] : [440, 455, 470, 485, 500, 515, 530], [0, 25, 50, 75, 100]);
+      const ink = themeColor("--plot-line");
+      line(left, y(50), right, y(50), themeColor("--muted"), 1, true);
+      line(x(490.5), top, x(490.5), bottom, themeColor("--coral"), 1.5, true);
+      text("P490–S491", x(490.5), top - 7, themeColor("--coral"), "center");
+      for (let i = 1; i < data.stalkConfidence.length; i++) {
+        const previous = data.stalkConfidence[i - 1], current = data.stalkConfidence[i];
+        line(x(previous.number), y(previous.plddt), x(current.number), y(current.plddt), ink, 2);
+      }
+    },
+  );
+}
+
+function drawClashChart() {
+  plotWhenVisible(
+    "clash-chart", [0, 2.65, 0, 1], ["Closest binder–MerTK heavy atoms (Å)", "Reported ipTM"],
+    ({context, themeColor, x, y, top, bottom, line, text, gridLines}) => {
+      gridLines([0, 0.5, 1, 1.5, 2, 2.5], [0, 0.25, 0.5, 0.75, 1]);
+      const cutoff = themeColor("--coral");
+      line(x(2), top, x(2), bottom, cutoff, 1.5, true);
+      text("2 Å cutoff", x(2), top - 7, cutoff, "center");
+      for (const item of data.cases) {
+        if (item.overlayReliable === false || !Number.isFinite(item.proteinMin) || !Number.isFinite(item.iptm)) continue;
+        const color = controls.has(item.id) ? "#d28a51"
+          : item.backend ? "#41a58b" : item.engine === "BindCraft / AF2" ? "#4d8dac" : "#a56fc8";
+        context.beginPath();
+        context.arc(x(item.proteinMin), y(item.iptm), controls.has(item.id) ? 6 : 4.5, 0, 2 * Math.PI);
+        context.fillStyle = color;
+        context.fill();
+        context.strokeStyle = themeColor("--white");
+        context.lineWidth = 1;
+        context.stroke();
+        if (controls.has(item.id)) text(item.name, x(item.proteinMin) - 8, y(item.iptm) - 8, themeColor("--ink"), "right");
+      }
+    },
+  );
 }
 
 function ectodomainStyle(viewer, target) {
@@ -614,6 +764,15 @@ function caseNote(item) {
   return clashes.length ? contact + " The overlay flags overlap with " + clashes.join(" and ") + "." : contact;
 }
 
+function geometryVerdict(item) {
+  if (item.overlayReliable === false) return item.stalkContacts ? "Uncertain stalk fit" : "Off-stalk prediction";
+  if (!Number.isFinite(item.proteinMin) || !Number.isFinite(item.glycanMin)) return "Overlay incomplete";
+  if (item.proteinMin < 2 && item.glycanMin < 2.5) return "Protein and glycan overlap";
+  if (item.proteinMin < 2) return "Protein overlap";
+  if (item.glycanMin < 2.5) return "Glycan overlap";
+  return "Clears overlay cutoffs";
+}
+
 function construct(item) {
   if (item.engine === "BindCraft / AF2") return "Original BindCraft / AF2 design crop";
   const template = {base: "base stalk", psi490_plus25: "+25° stalk"}[item.template] || item.template;
@@ -644,6 +803,7 @@ function renderPanel(key) {
     ["MerTK pLDDT", fmt(item.receptorPlddt, 1)],
   ];
   if (item.cutDistances) metrics.push(["Cleavage distance", distance(cutMin(item))]);
+  if (item.pairIptm) metrics.push(["Directional ipTM", item.pairIptm.map(v => fmt(v)).join(" / ")]);
   if (Number.isFinite(item.fitRmsd)) metrics.push(["Overlay RMSD", distance(item.fitRmsd)]);
   if (item.backend) metrics.push(["Binder pose RMSD", distance(item.poseRmsd)]);
   showMetrics(key + "-metrics", metrics);
@@ -693,7 +853,7 @@ function selectAim(domain) {
 
 function addRows() {
   const rows = byId("rows");
-  for (const item of data.cases.filter(row => row.engine === "Boltz-2")) {
+  for (const item of data.cases) {
     const row = document.createElement("tr");
     const title = document.createElement("th");
     title.scope = "row";
@@ -711,8 +871,10 @@ function addRows() {
       }
     });
     title.append(button);
-    row.append(title, ...[
-      fmt(item.iptm), fmt(item.partnerPlddt, 1), distance(item.pae, 1), item.igContacts, item.stalkContacts,
+    const verdict = node("td", geometryVerdict(item));
+    verdict.className = "verdict-cell";
+    row.append(title, verdict, ...[
+      fmt(item.iptm), fmt(item.partnerPlddt, 1), distance(item.pae, 1), item.igContacts ?? "—", item.stalkContacts ?? "—",
       distance(cutMin(item)), distance(item.fitRmsd), overlayDistance(item, item.proteinMin), overlayDistance(item, item.glycanMin),
     ].map(value => node("td", value)));
     rows.append(row);
@@ -748,27 +910,32 @@ const gen = data.generation;
 const q124 = cases.get("03_ig1_q124_l114");
 const positive = panelCases.positive;
 const negative = panelCases.negative;
-byId("hero-generation").textContent = gen.acceptedSequences + "/" + gen.savedSequences;
 byId("generation-result").textContent = "The " + gen.runtimeMinutes + "-minute E152 BindCraft screen used AlphaFold2-Multimer and ProteinMPNN. " +
   gen.filtered + " of " + gen.started + " trajectories were filtered and " + gen.interrupted +
   " was interrupted. mpnn12 and mpnn8 passed BindCraft filters (ipTM " + fmt(cases.get("mpnn12").iptm) +
   " and " + fmt(cases.get("mpnn8").iptm) + "). Both cleared resolved glycans and overlapped receptor atoms.";
 byId("local-result").textContent = "Rosetta FastRelax increased mpnn8’s nearest binder–receptor atom distance from " +
-  distance(gen.fastRelaxBefore) + " to " + distance(gen.fastRelaxAfter) + ". Local redesign and fitting brought " +
-  w.localPassed + " of " + w.localTotal + " poses through the initial geometry check.";
-byId("refold-result").textContent = "Refolds passed " + w.refoldPassed + "/" + w.refoldTotal +
-  " with AlphaFold2 and " + repair.passed + "/" + repair.complete + " with Boltz-2. A separate RFD4 repair screen yielded " +
-  w.rfdPassed + "/" + w.rfdTotal + " passes. Affinity optimization was skipped.";
+  distance(gen.fastRelaxBefore) + " to " + distance(gen.fastRelaxAfter) + ", below the 2 Å cutoff. Restrained repacking cleared it (" +
+  fmt(Math.min(...repair.variants.map(v => v.proteinMin))) + "–" +
+  distance(Math.max(...repair.variants.map(v => v.proteinMin))) + ") with 14–15 of 16 original contacts retained.";
+byId("refold-result").textContent = "Clashes returned in all six independent Boltz-2 refolds. " +
+  "The earlier AlphaFold2 refolds and the separate RFD4 repair screen also yielded no passes. Affinity optimization was skipped.";
 byId("q124-result").textContent = "The 114-residue Q124 Ig1 design retained " + q124.retained + " of " +
   q124.startingContacts + " starting contacts. Protein and glycan clashes keep it as a backup scaffold.";
 byId("stalk-context").textContent = "The 37NT crystal structure ends at Gly484. I used an AlphaFold model to examine the region around Pro490–Ser491.";
-byId("stalk-result").textContent = "I compared protein, glycan, and membrane clearance across three stalk conformations. " +
-  w.stalkPassed + " of " + w.stalkTotal + " modeled poses passed in all three.";
-byId("control-result").textContent = "Boltz-2 gave GAS6 a low ipTM of " + fmt(positive.iptm) +
-  ". The unrelated mCherry model scored " + fmt(negative.iptm) +
-  " and still landed near the cut. This benchmark leaves protector binding uncertain.";
+const sensitivity = data.stalkSensitivity;
+const p95 = Object.values(sensitivity.conformers).map(row => row.probe_displacement_A.p95);
+byId("stalk-result").textContent = "The initial screen compared " + w.stalkTotal +
+  " poses across three modeled conformations. Adding small coordinate shifts (0.5 Å standard deviation per axis) gave 95th-percentile probe displacements of " +
+  fmt(Math.min(...p95), 1) + "–" + distance(Math.max(...p95), 1) +
+  ", comparable to the clash cutoffs. The geometry outcome is sensitive to alignment.";
+const L67 = cases.get("07_stalk_base67_plus25");
+byId("control-result").textContent = "GAS6 scored weakly (global ipTM " + fmt(positive.iptm) +
+  "). mCherry came closer to the modeled cut (" + distance(cutMin(negative)) + ", " + negative.stalkContacts +
+  " stalk contacts) than the closest protector, L67 (" + distance(cutMin(L67)) + ", " + L67.stalkContacts +
+  " contacts). Proximity and contact counts could not rank protector binding in this benchmark.";
 const p = data.protocol;
-const confidence = data.stalkConfidence;
+const confidence = data.stalkConfidence.filter(row => row.number >= 485 && row.number <= 505);
 const meanStalk = confidence.reduce((sum, row) => sum + row.plddt, 0) / confidence.length;
 const hotStalk = confidence.filter(row => [488, 490, 491].includes(row.number))
   .map(row => row.residue + row.number + " " + fmt(row.plddt, 1));
@@ -785,8 +952,14 @@ byId("protocol").textContent = "The first Boltz-2 batch ran on Hoffman2 with Mer
 byId("method-results").textContent = "The Ig2 run yielded " + gen.ig2Accepted + " BindCraft passes from " +
   gen.ig2Sequences + " saved sequences. The two Ig1 passes came from " + gen.acceptedBackbones +
   " backbone and yielded " + gen.nativePasses + " passes against the crystal structure. Glycans were added after Boltz-2 prediction.";
+byId("alignment-audit").textContent = "The stalk screen recorded " + sensitivity.screen.pass_all_three +
+  " of " + sensitivity.screen.poses + " passes across all three conformations. The audit used " +
+  sensitivity.settings.draws + " perturbations and probes " + sensitivity.settings.probe_radius_A +
+  " Å from the alignment centroid. The result is a sensitivity check for the modeled geometry.";
 for (const stage of ["masked", "cut", "bound"]) drawActivation("activation-" + stage, stage);
 initMechanismStructures();
+drawStalkChart();
+drawClashChart();
 addRows();
 addRepairRows();
 for (const link of document.querySelectorAll('a[href^="#"]')) {
@@ -829,6 +1002,13 @@ selectAim("Ig1");
 renderPanel("positive");
 renderPanel("negative");
 document.documentElement.dataset.reviewReady = "true";
+}
+startReview().catch(error => {
+  console.error(error);
+  const message = byId("viewer-error");
+  message.textContent = "The interactive data could not be opened in this browser.";
+  message.hidden = false;
+});
 </script>
 </body>
 </html>

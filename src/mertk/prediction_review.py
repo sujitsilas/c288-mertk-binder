@@ -71,6 +71,7 @@ def nearest_points(x, y):
 
 
 def inspect_pose(path, native, canonical, expected_target=None, expected_partner=None):
+    """Report raw-complex contacts and their reference-resolved subset separately."""
     parser = MMCIFParser(QUIET=True) if path.suffix == ".cif" else PDBParser(QUIET=True)
     model = parser.get_structure("prediction", path)[0]
     proteins = [c for c in model if any(r.id[0] == " " for r in c)]
@@ -91,19 +92,25 @@ def inspect_pose(path, native, canonical, expected_target=None, expected_partner
         raise ValueError("Prediction does not match the declared partner input sequence")
     native_res = {r.id[1]: r for r in native["A"] if r.id[0] == " "}
     mapped = {mapping[r.id]: r for r in target if r.id in mapping}
-    atoms = [a for r in partner if r.id[0] == " " for a in r if a.element != "H"]
+    atoms = [a for r in partner if r.id[0] == " " for a in r if a.element not in {"H", "D"}]
     xyz = np.array([a.coord for a in atoms])
-    gly = [a for r in native.get_residues() if r.resname in SUGARS for a in r if a.element != "H"]
+    gly = [
+        a
+        for r in native.get_residues()
+        if r.resname in SUGARS
+        for a in r
+        if a.element not in {"H", "D"}
+    ]
     glyxyz = np.array([a.coord for a in gly])
-    proteinxyz = np.array([a.coord for r in native_res.values() for a in r if a.element != "H"])
-    contacts = []
-    for n, r in mapped.items():
-        if (
-            n in native_res
-            and nearest_points(np.array([a.coord for a in r if a.element != "H"]), xyz)[0].min()
-            <= 4.5
-        ):
-            contacts.append(n)
+    proteinxyz = np.array(
+        [a.coord for r in native_res.values() for a in r if a.element not in {"H", "D"}]
+    )
+    target_contacts = []
+    for number, residue in mapped.items():
+        target_xyz = np.array([a.coord for a in residue if a.element not in {"H", "D"}])
+        if nearest_points(target_xyz, xyz)[0].min() <= 4.5:
+            target_contacts.append(number)
+    reference_contacts = sorted(n for n in target_contacts if n in native_res)
     alignments = {}
     for key, limits in [
         ("Ig1", (93, 185)),
@@ -141,7 +148,9 @@ def inspect_pose(path, native, canonical, expected_target=None, expected_partner
         "partner_sequence": sequence(partner),
         "raw_target_pdb": pdb_chain(target, mapping),
         "raw_partner_pdb": pdb_chain(partner),
-        "contacts": sorted(contacts),
+        "contacts": reference_contacts,  # Compatibility with earlier review snapshots.
+        "reference_contacts": reference_contacts,
+        "target_contacts": sorted(target_contacts),
         "alignments": alignments,
         "target_chain": target.id,
         "partner_chain": partner.id,

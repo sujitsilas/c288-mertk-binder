@@ -3,13 +3,14 @@
 import argparse
 import json
 import sys
+from inspect import getsourcefile
 from pathlib import Path
 
 import numpy as np
 from Bio.PDB import MMCIFParser
 
 from mertk.prediction_review import inspect_pose
-from mertk.provenance import file_hash
+from mertk.provenance import file_hash, source_revision
 
 
 def score(suite, case, target, canonical, native, modeled):
@@ -42,7 +43,7 @@ def score(suite, case, target, canonical, native, modeled):
     target_start = canonical.index(target) + 1
     anchor = np.array([a.coord for a in receptor[152 - target_start] if a.element != "H"])
     confidence_data = json.loads(confidence.read_text())
-    contacts = stalk_pose["contacts"]
+    contacts = pose["target_contacts"]
     overlays = {}
     for label, fit in [
         ("experimental_Ig1", pose["alignments"]["Ig1"]),
@@ -83,10 +84,35 @@ def main(suite):
             raise ValueError("Prediction input differs from the submitted manifest")
         try:
             row = score(suite, case, manifest["receptor_sequence"], canonical, native, modeled)
+            if row["status"] == "complete" and "reference_contact_residues_4p5A" in case:
+                if case["role"].startswith("Aim 1"):
+                    site_key = "Ig1_contact_residues_4p5A"
+                elif case["role"].startswith("Aim 2"):
+                    site_key = "stalk_contact_residues_4p5A"
+                else:
+                    raise ValueError(f"Reference contact region is unspecified for {case['role']}")
+                baseline = set(case["reference_contact_residues_4p5A"])
+                row["source_pose_contact_count"] = len(baseline)
+                row["retained_source_pose_contacts"] = sorted(baseline.intersection(row[site_key]))
         except (KeyError, ValueError, OSError, IndexError) as error:
             row = {"status": "unscored", "error": str(error)}
-        rows.append({"id": case["id"], "role": case["role"], **row})
-    summary = {"protocol": manifest["protocol"], "cases": rows}
+        rows.append(
+            {
+                "id": case["id"],
+                "role": case["role"],
+                "target_template": case.get("target_template"),
+                **row,
+            }
+        )
+    summary = {
+        "protocol": manifest["protocol"],
+        "scorer": {
+            "sha256": file_hash(__file__),
+            "pose_inspection_sha256": file_hash(getsourcefile(inspect_pose)),
+            **source_revision(__file__),
+        },
+        "cases": rows,
+    }
     path = suite / "assessment.json"
     path.with_suffix(".tmp").write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
     path.with_suffix(".tmp").replace(path)

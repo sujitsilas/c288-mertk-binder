@@ -13,9 +13,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("campaigns", type=Path, nargs="+")
     parser.add_argument("--output", type=Path, default=Path("outputs/analysis/20261112"))
+    parser.add_argument("--log", type=Path, help="Use an explicit generation log for one campaign")
     args = parser.parse_args()
+    if args.log is not None and len(args.campaigns) != 1:
+        parser.error("--log requires exactly one campaign")
+    try:
+        records = [summarize(path, log_path=args.log) for path in args.campaigns]
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
     args.output.mkdir(parents=True, exist_ok=True)
-    records = [summarize(p) for p in args.campaigns]
     (args.output / "campaign_metrics.json").write_text(json.dumps(records, indent=2) + "\n")
     fields = [
         "campaign_id",
@@ -95,10 +101,7 @@ def main():
         ax.spines[["top", "right"]].set_visible(False)
         ax.grid(axis="y", alpha=0.15)
         ax.set_axisbelow(True)
-    fig.suptitle(
-        "MERTK pilot: no accepted designs; confidence before sequence redesign is insufficient",
-        fontsize=12,
-    )
+    fig.suptitle("MerTK design campaign diagnostics", fontsize=12)
     fig.savefig(args.output / "pilot_metrics.png", dpi=180)
     fig.savefig(args.output / "pilot_metrics.svg")
     plt.close(fig)

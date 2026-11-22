@@ -20,4 +20,4 @@ uv sync --frozen --extra dev
 .venv/bin/python scripts/build_final_review.py
 ```
 
-Tests that use experimental structures run when those references are installed. The review build reads the synchronized runs and creates `outputs/review/mertk_protector_predictions.html`. The GitHub Pages build embeds the same models and figure. [Build commands](scripts/README.md) · [Pilot gallery rebuilds](docs/prediction_review.md#rebuild-the-pilot-galleries) · [Archived material](docs/repository_archive.md)
+Tests that use experimental structures run when those references are installed. The review build reads the synchronized runs and creates `outputs/review/mertk_protector_predictions.html`. From a clean checkout, restore and verify the bundled evidence before building. [Clean checkout instructions](docs/prediction_review.md#rebuild-the-published-review) · [Pilot gallery rebuilds](docs/prediction_review.md#rebuild-the-pilot-galleries) · [Archived material](docs/repository_archive.md)

@@ -30,6 +30,10 @@ def frames(backbone, xp=np):
     return xp.stack([x, y, z], axis=-2)
 
 
+def glycan_local_positions(xyz, backbone):
+    return (xyz - backbone[1]) @ frames(backbone).T
+
+
 def prepare_constraints(target_pdb, native_cif):
     target = PDBParser(QUIET=True).get_structure("crop", target_pdb)[0]["A"]
     residues = [r for r in target if r.id[0] == " "]
@@ -63,9 +67,8 @@ def prepare_constraints(target_pdb, native_cif):
         target_triad = np.array([target[number][name].coord for name in ("N", "CA", "C")])
         if not np.allclose(triad, target_triad, rtol=0, atol=0.0006):
             raise ValueError("Native and crop frames differ")
-        # PDB rounds to 0.001 A; retain exact native sugar positions in the crop frame.
-        triad = target_triad
-        local_atoms.extend(((atoms - triad[1]) @ frames(triad).T).tolist())
+        # Retain exact native sugar positions relative to the PDB's rounded frame.
+        local_atoms.extend(glycan_local_positions(atoms, target_triad).tolist())
         atom_sites.extend([len(sites)] * len(atoms))
         sites.append(number)
         attachments.append(
@@ -103,16 +106,23 @@ def prepare_constraints(target_pdb, native_cif):
     }
 
 
+def glycan_positions(anchor_backbones, local_positions, atom_sites, xp=np):
+    """Map stored local sugar coordinates into the current Asn frames."""
+    indices = xp.asarray(atom_sites)
+    local = xp.asarray(local_positions)
+    return (
+        xp.einsum("ai,aij->aj", local, frames(anchor_backbones, xp)[indices])
+        + anchor_backbones[indices, 1]
+    )
+
+
 def losses(positions, mask, spec, xp=np):
     """AF atom37 order: N=0, CA=1, C=2. Mask absent atoms before reduction."""
     nt = spec["target_length"]
     if positions.shape[0] <= nt or positions.shape[1:] != (37, 3):
         raise ValueError("Expected target followed by a binder in atom37 order")
     anchor = positions[xp.asarray(spec["anchor_indices"]), :3]
-    basis = frames(anchor, xp)
-    indices = xp.asarray(spec["glycan_atom_sites"])
-    local = xp.asarray(spec["glycan_local_xyz"])
-    glycan = xp.einsum("ai,aij->aj", local, basis[indices]) + anchor[indices, 1]
+    glycan = glycan_positions(anchor, spec["glycan_local_xyz"], spec["glycan_atom_sites"], xp)
     binder = positions[nt:]
     distances = xp.sqrt(xp.sum((binder[:, :, None] - glycan[None, None]) ** 2, axis=-1) + 1e-8)
     radius = spec["heavy_atom_clearance_A"]
